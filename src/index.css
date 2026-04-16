@@ -1,0 +1,52 @@
+@import "tailwindcss";
+
+@layer base {
+  :root {
+    --bg-main: #f8fafc;
+    --text-main: #0f172a;
+    --accent: #2563eb;
+    --glass-bg: rgba(255, 255, 255, 0.7);
+    --glass-border: rgba(255, 255, 255, 0.5);
+    --shadow-color: rgba(37, 99, 235, 0.05);
+  }
+
+  .dark {
+    --bg-main: #020617; /* Deep Navy Black */
+    --text-main: #f1f5f9;
+    --accent: #3b82f6;
+    --glass-bg: rgba(15, 23, 42, 0.6);
+    --glass-border: rgba(255, 255, 255, 0.08);
+    --shadow-color: rgba(0, 0, 0, 0.5);
+  }
+
+  body {
+    @apply antialiased;
+    background-color: var(--bg-main);
+    color: var(--text-main);
+  }
+}
+
+@layer utilities {
+  .glass {
+    @apply backdrop-blur-2xl border transition-all duration-300;
+    background-color: var(--glass-bg);
+    border-color: var(--glass-border);
+  }
+
+  .premium-shadow {
+    box-shadow: 0 20px 50px -12px var(--shadow-color);
+  }
+
+  .hide-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .hide-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  .highlight-match {
+    @apply bg-blue-500/20 text-blue-600 dark:text-blue-400 font-black px-1 rounded-sm border-b-2 border-blue-500/50;
+  }
+}
+
