@@ -56,13 +56,13 @@ export default function Results({ results, query, onSelect, onBack }: ResultsPro
         <div className="flex items-center gap-4">
           <button 
             onClick={onBack}
-            className="p-2 hover:bg-white/50 rounded-full transition-colors text-[#64748b]"
+            className="p-2 hover:bg-[var(--surface-clinical)] rounded-xl transition-colors text-[var(--text-secondary)]"
           >
             <ArrowLeft size={24} />
           </button>
           <div>
-            <h2 className="text-2xl font-semibold text-[#1e293b]">Pacientes Coincidentes</h2>
-            <p className="text-[#64748b] text-sm">
+            <h2 className="text-2xl font-black text-[var(--text-primary)]">Pacientes Coincidentes</h2>
+            <p className="text-[var(--text-secondary)] text-sm font-medium">
               {results.length} pacientes hallados {query ? `para "${query}"` : 'en base de datos'}.
             </p>
           </div>
@@ -71,7 +71,7 @@ export default function Results({ results, query, onSelect, onBack }: ResultsPro
         {results.length > 0 && (
           <button 
             onClick={handleExportCSV}
-            className="flex items-center gap-2 bg-[#2563eb] hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium text-sm transition-colors shadow-sm"
+            className="flex items-center gap-2 bg-[var(--accent-clinical)] hover:opacity-90 text-white px-5 py-2.5 rounded-xl font-bold text-sm transition-all shadow-md active:scale-95"
             title="Exportar a CSV"
           >
             <Download size={18} />
@@ -90,30 +90,29 @@ export default function Results({ results, query, onSelect, onBack }: ResultsPro
             <div 
               key={`result_${res.nhc}_${idx}`}
               onClick={() => onSelect(res)}
-              className="bg-white/70 backdrop-blur-md p-5 rounded-2xl shadow-[0_4px_6px_-1px_rgba(0,0,0,0.05),0_2px_4px_-1px_rgba(0,0,0,0.03)] border border-white/40 hover:border-[#2563eb] transition-all cursor-pointer flex items-center gap-6 group"
+              className="bg-[var(--surface-clinical)] p-6 rounded-2xl shadow-lg border border-[var(--border-clinical)] hover:border-[var(--accent-clinical)] transition-all cursor-pointer flex items-center gap-6 group relative overflow-hidden"
             >
-              <div className="w-12 h-12 bg-[#eff6ff] text-[#2563eb] rounded-full flex items-center justify-center flex-shrink-0 group-hover:scale-105 transition-transform">
-                <User size={24} />
+              <div className="w-14 h-14 bg-[var(--accent-clinical)]/10 text-[var(--accent-clinical)] rounded-2xl flex items-center justify-center flex-shrink-0 group-hover:scale-105 transition-transform">
+                <User size={28} />
               </div>
-              
               <div className="flex-1">
-                <div className="flex items-center justify-between mb-1">
-                  <h3 className="text-[16px] font-semibold text-[#1e293b] flex items-center gap-2 group-hover:text-[#2563eb] transition-colors">
+                <div className="flex items-center justify-between mb-2">
+                  <h3 className="text-[18px] font-black text-[var(--text-primary)] flex items-center gap-2 group-hover:text-[var(--accent-clinical)] transition-colors">
                     {name}
                   </h3>
-                  <span className="text-[11px] font-bold bg-[#dcfce7] text-[#166534] px-2.5 py-1 rounded-full">
+                  <span className="text-[11px] font-black bg-[var(--accent-clinical)]/10 text-[var(--accent-clinical)] px-3 py-1.5 rounded-full uppercase tracking-widest">
                     Score: {res.totalScore.toFixed(1)}
                   </span>
                 </div>
                 
-                <div className="flex gap-2 flex-wrap mt-3 items-center text-[12px] text-[#475569]">
-                  <span className="bg-[#f1f5f9] px-2.5 py-1 rounded font-medium flex items-center gap-1">NHC: {res.nhc}</span>
-                  <span className="bg-[#f1f5f9] px-2.5 py-1 rounded font-medium flex items-center gap-1">
-                    <Activity size={14} className="text-[#2563eb]" /> 
-                    {res.matchingTomasCount} Tomas implicadas
+                <div className="flex gap-3 flex-wrap mt-3 items-center text-[12px] text-[var(--text-secondary)]">
+                  <span className="bg-[var(--bg-clinical)] px-3 py-1.5 rounded-lg border border-[var(--border-clinical)] font-bold flex items-center gap-1.5">NHC: {res.nhc}</span>
+                  <span className="bg-[var(--bg-clinical)] px-3 py-1.5 rounded-lg border border-[var(--border-clinical)] font-bold flex items-center gap-1.5">
+                    <Activity size={14} className="text-[var(--accent-clinical)]" /> 
+                    {res.matchingTomasCount} Tomas
                   </span>
-                  <span className="bg-[#f1f5f9] px-2.5 py-1 rounded font-medium">
-                    {res.matchedRegistros.length} Registros totales
+                  <span className="bg-[var(--bg-clinical)] px-3 py-1.5 rounded-lg border border-[var(--border-clinical)] font-bold">
+                    {res.matchedRegistros.length} Registros
                   </span>
                 </div>
               </div>
@@ -122,11 +121,11 @@ export default function Results({ results, query, onSelect, onBack }: ResultsPro
         })}
 
         {results.length === 0 && (
-          <div className="text-center py-20 bg-white/70 backdrop-blur-md rounded-2xl border border-white/40 shadow-sm">
-            <div className="w-16 h-16 bg-[#f1f5f9] rounded-full flex items-center justify-center mx-auto mb-4 text-[#94a3b8]">
+          <div className="text-center py-24 bg-[var(--surface-clinical)] rounded-2xl border border-dashed border-[var(--border-clinical)] shadow-sm">
+            <div className="w-16 h-16 bg-[var(--bg-clinical)] rounded-full flex items-center justify-center mx-auto mb-4 text-[var(--text-secondary)]/40">
               <FileText size={32} />
             </div>
-            <p className="text-[#64748b] text-lg font-medium">No se han encontrado pacientes coincidentes.</p>
+            <p className="text-[var(--text-secondary)] text-lg font-bold">No se han encontrado pacientes coincidentes.</p>
           </div>
         )}
       </div>

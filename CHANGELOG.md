@@ -3,7 +3,17 @@
 Todos los cambios notables realizados en el proyecto Queryclin serán documentados en este archivo, detallando el efecto del cambio y el motivo (el "por qué") de forma cronológica.
 
 ## [2026-04-16]
-### Cambiado
+### Agregado
+- **Sistema de Temas Dinámico (Light/Dark):** Implementación de una arquitectura de temas profesional basada en variables CSS.
+  - **Archivos Modificados:** `src/index.css`, `src/App.tsx`, `src/components/Home.tsx`, `src/components/Results.tsx`, `src/components/HCEView.tsx`.
+  - **Motivo:** El usuario solicitó un sistema para alternar entre modos de visualización sin perder la "estética original". Se diseñó un Modo Oscuro "Deep Slate" que evita la fatiga visual en turnos nocturnos y un Modo Claro que limpia y refina el diseño original. Se añadió un toggle manual (icono Sun/Moon) con persistencia en LocalStorage.
+
+### Mejorado
+- **Legibilidad y UX Clínica:** Optimización global de fuentes, contrastes e interlineados.
+  - **Archivos Modificados:** Todos los componentes visuales.
+  - **Motivo:** Aumentar la velocidad de lectura de registros médicos mediante un interlineado mayor (1.6) y una jerarquía tipográfica más marcada (font-black para cabeceras).
+
+### Corregido
 - **Renombramiento del Proyecto:** Se actualizaron todas las referencias del proyecto de "HCE Core - Intelligence" (o "My Google AI Studio App") a "Queryclin".
   - **Archivos Modificados:** `index.html`, `package.json`, `README.md`, `src/App.tsx`.
   - **Motivo:** El usuario decidió establecer una nueva identidad oficial unificada para el proyecto. Esto asegura que la aplicación tenga una marca consistente desde las etiquetas HTML hasta la interfaz visual y la documentación.

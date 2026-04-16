@@ -32,8 +32,9 @@ Todo proyecto tiene un origen. Queryclin arrancó con una directiva inicial ambi
 
 La visión consistió en:
 - **Simplicidad Google:** Plantear la interfaz central como un buscador limpio y minimalista. Un lienzo vacío donde el doctor solo necesita escribir lo que busca.
-- **Estética Inmersiva "Premium":** Aplicar una paleta "Deep Noir" (modo oscuro) combinado con efectos _Glassmorphism_ (paneles de vidrio esmerilado translúcidos), pensados ergonómicamente para entornos médicos nocturnos.
-- **Cerebro Booleano:** Lograr coincidencias algorítmicas combinando operadores lógicos naturales (`diabetes AND asma NOT fumador`), logrando deshacernos de las dependencias de consultas lentas en servidores de bases de datos.
+- **Sistema de Temas Dual (Light/Dark):** Implementación de una arquitectura de diseño que permite alternar entre el modo "Clean Clinical" original (claro) y un nuevo modo "Deep Slate" (oscuro), adaptado para reducir la fatiga visual en entornos hospitalarios de 24h.
+- **Cerebro Booleano Avanzado:** Un motor de búsqueda que procesa sintaxis lógica natural (`diabetes AND asma NOT fumador`), permitiendo segmentaciones complejas de la población clínica sin dependencias de red.
+- **Legibilidad Crítica:** Diseño centrado en el dato médico, optimizando interlineados y jerarquías tipográficas para una lectura rápida y precisa.
 
 ---
 
@@ -67,12 +68,17 @@ Así es como hemos ido escalando el proyecto, paso a paso. (Para ver los _commit
 *Surgió un reto funcional: Una vez que el estadístico encuentra sus 50 pacientes ideales, ¿cómo los saca de la App?*
 - Fabricamos un botón nativo inyectado limpiamente en nuestra interfaz con un logo de descarga (Lucide). Este iterador captura todos los diccionarios mostrados, crea un archivo Blob, inserta directrices estrictas *BOM UTF-8* (para evitar que programas como Excel destruyan acentos o eñes) y le devuelve al usuario un CSV recién horneado con la información condensada y filtrada.
 
-### Fase 4: Fundaciones Estructurales y Expansión (En Progreso 🚧)
-*Nos encontramos en plena actividad.*
-Actualmente, antes de apresurar la maquinaria al despliegue masivo, estamos invirtiendo esta etapa en seguir puliendo los cimientos, las leyes y reglas que la IA sigue (como las directivas documentales) y cualquier eslabón funcional en nuestra interfaz local.
+### Fase 4: Refinamiento de Interfaz y Legibilidad (Completada ✅)
+*Enfocada en convertir la herramienta en un producto de alta precisión.*
+- **Motor Booleano Profesional:** Refactorización del parser para soportar intersecciones, uniones y exclusiones (`AND`, `OR`, `NOT`) con diagnóstico de filtrado en tiempo real.
+- **Arquitectura de Temas:** Implementación de variables CSS dinámicas y un sistema de persistencia para alternar entre modos visuales (Claro/Oscuro).
+- **UX de Navegación:** Introducción de autoscroll y detección automática de pestañas para dirigir al médico directamente al hallazgo resaltado dentro de la historia clínica.
 
-### Fase 5: Despliegue en Producción (Visión de Futuro ⏳)
-*El paso final cuando se concrete el desarrollo.*
+### Fase 5: Estabilización y Despliegue (En Progreso 🚧)
+*El paso final hacia el entorno productivo.*
+- Auditando la integridad de los datos en datasets complejos.
+- Elaboración del Pipeline de compilación final estático (`npm run build`).
+- Integración en un entorno de acceso unificado basado en políticas Local-First.
 - Elaboración del Pipeline o canal de compilación final estático (`npm run build`).
 - Integración en un CDN de acceso libre, pregonando exactamente nuestras mismas políticas Local-First sin servidor transaccional, para que un doctor acceda vía web en su clínica sin ninguna instalación de base.
 

@@ -1,5 +1,36 @@
 @import "tailwindcss";
 
+@layer base {
+  :root {
+    --bg-clinical: #f8fafc;
+    --surface-clinical: #ffffff;
+    --text-primary: #0f172a;
+    --text-secondary: #475569;
+    --accent-clinical: #2563eb;
+    --border-clinical: #e2e8f0;
+    --glass-bg: rgba(255, 255, 255, 0.7);
+    --glass-border: rgba(255, 255, 255, 0.4);
+  }
+
+  .dark {
+    --bg-clinical: #0f172a;
+    --surface-clinical: #1e293b;
+    --text-primary: #f8fafc;
+    --text-secondary: #94a3b8;
+    --accent-clinical: #3b82f6;
+    --border-clinical: #334155;
+    --glass-bg: rgba(30, 41, 59, 0.7);
+    --glass-border: rgba(51, 65, 85, 0.4);
+  }
+
+  body {
+    @apply bg-[var(--bg-clinical)] text-[var(--text-primary)] transition-colors duration-300;
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+}
+
 @layer utilities {
   .hide-scrollbar::-webkit-scrollbar {
     display: none;
@@ -17,4 +48,17 @@
   border-radius: 4px;
   font-weight: 600;
   box-shadow: 0 0 0 2px rgba(254, 240, 138, 0.4);
+}
+
+.dark .highlight-match {
+  background-color: #ca8a04; /* yellow-600 */
+  color: #ffffff;
+  box-shadow: 0 0 0 2px rgba(202, 138, 4, 0.3);
+}
+
+/* Smooth transitions for theme toggle */
+* {
+  transition-property: background-color, border-color, color, fill, stroke;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  transition-duration: 200ms;
 }
