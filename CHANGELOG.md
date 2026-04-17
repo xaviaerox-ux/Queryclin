@@ -2,6 +2,19 @@
 
 Todos los cambios notables realizados en el proyecto Queryclin serán documentados en este archivo, detallando el efecto del cambio y el motivo (el "por qué") de forma cronológica.
 
+## [2026-04-17]
+### Agregado (Despliegue y CI/CD)
+- **Habilitación de GitHub Pages:**
+  - **Archivos Modificados:** `vite.config.ts`, `.github/workflows/deploy.yml` (nuevo).
+  - **Detalle:** Configuración de la ruta base y creación de un Workflow de GitHub Actions para el despliegue automático de la aplicación.
+### Agregado (Pruebas de Estrés)
+- **Generación de Dataset Masivo:**
+  - **Archivos Modificados:** `csv_100k.csv` (nuevo), `scratch/generate_large_csv.cjs` (nuevo).
+  - **Detalle:** Generación de un archivo de 100.000 registros clínicos correspondientes a ~80.000 pacientes únicos para validar el rendimiento del motor IndexedDB y la búsqueda asíncrona.
+- **Implementación de Gobernanza Persistente:**
+  - **Archivos Modificados:** `RULES.md`, `README.md`, `.cursorrules` (nuevo).
+  - **Motivo:** Asegurar que las reglas de desarrollo se mantengan consistentes en cualquier entorno.
+
 ## [2026-04-16]
 ### Añadido (Escalabilidad 100k)
 - **Implementación de Arquitectura Local-First de Alto Rendimiento:**

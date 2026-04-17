@@ -65,4 +65,7 @@ La aplicación es accesible en red local compartiendo la IP del host en el puert
 ---
 
 ## 6. Gobernanza y Desarrollo
-El proyecto se rige por el documento **`RULES.md`**, que asegura que cualquier modificación mantenga la coherencia histórica de la documentación y la fidelidad absoluta a los datos clínicos originales.
+El proyecto se rige por el documento **[RULES.md](file:///c:/Users/hrmadm/Documents/GitHub/Queryclin/RULES.md)**, que asegura que cualquier modificación mantenga la coherencia histórica de la documentación y la fidelidad absoluta a los datos clínicos originales. 
+
+> [!IMPORTANT]
+> **Instrucciones para Agentes de IA:** Cualquier asistente de IA que trabaje en este repositorio tiene la obligación de actualizar el `CHANGELOG.md` tras cada modificación y el Roadmap de este `README.md` tras alcanzar hitos significativos, siguiendo estrictamente las directrices de `RULES.md`.

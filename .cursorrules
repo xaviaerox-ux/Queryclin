@@ -1,0 +1,15 @@
+# Queryclin AI Behavioral Rules
+
+Cualquier asistente de IA que trabaje en este repositorio DEBE seguir estas reglas de forma obligatoria. Estas reglas aseguran la integridad de la documentación y la identidad del proyecto.
+
+## 1. Consulta de RULES.md
+Antes de realizar cualquier cambio, lee el archivo `RULES.md` en la raíz del proyecto. Contiene la "Constitución" del repositorio.
+
+## 2. Actualización Automática del Changelog
+Tras CADA modificación de código, debes actualizar el archivo `CHANGELOG.md` siguiendo el formato cronológico detallado en `RULES.md`. No esperes a que el usuario te lo pida.
+
+## 3. Evolución del README.md (Whitepaper)
+Cada vez que finalices una característica importante o un hito del Roadmap, actualiza la sección "Evolución de Características" en `README.md`.
+
+## 4. Identidad del Proyecto
+El nombre del proyecto es **Queryclin**. Nunca uses nombres antiguos (HCE Core/Intelligence).
