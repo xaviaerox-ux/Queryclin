@@ -125,7 +125,7 @@ export default function App() {
             className="text-[20px] font-black tracking-tight cursor-pointer flex items-center gap-2 text-[var(--accent-clinical)]"
             onClick={() => setView('home')}
           >
-            <span>Query<span className="font-light text-[var(--text-primary)]">clin</span></span>
+            <span>Query<span className="font-light text-[var(--text-primary)]">clin</span> <span className="ml-2 px-1.5 py-0.5 text-[10px] font-bold bg-[var(--accent-clinical)] text-white rounded-md opacity-80" title="Última actualización: 17/04/2026 11:45">V2.1</span></span>
           </div>
           
           <div className="flex items-center gap-4 h-full">

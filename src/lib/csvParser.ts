@@ -61,7 +61,7 @@ function parseCSVLine(line: string): string[] {
       } else {
         insideQuotes = !insideQuotes;
       }
-    } else if (char === ',' && !insideQuotes) {
+    } else if (char === '|' && !insideQuotes) {
       values.push(currentValue);
       currentValue = '';
     } else {

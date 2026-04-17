@@ -30,8 +30,8 @@ Tras las últimas refactorizaciones para asegurar la escalabilidad masiva, el st
 - **IndexedDB (Persistencia):** Sustituye a localStorage para superar el límite de 5MB, permitiendo almacenar cientos de megabytes de datos clínicos de forma segura.
 - **Web Workers:** Delegación del procesamiento intensivo (parsing e indexación) a hilos paralelos para mantener la interfaz a 60 FPS.
 - **Librerías de Motor Interno:**
-  - *`csvParser.ts`*: Escáner de caracteres asíncrono.
-  - *`db.ts`*: Capa de abstracción para la base de datos fragmentada.
+  - *`csvParser.ts`*: Escáner de caracteres asíncrono optimizado para separadores de tipo pipeline (`|`).
+  - *`db.ts`*: Capa de abstracción para la base de datos fragmentada en IndexedDB.
   - *`searchEngine.ts`*: Buscador asíncrono basado en puntuación de relevancia (TF-IDF).
 
 ---
@@ -48,8 +48,13 @@ Tras las últimas refactorizaciones para asegurar la escalabilidad masiva, el st
 - Implementación de la exportación de resultados filtrados a CSV con codificación BOM UTF-8.
 
 ### Fase 4: Escalabilidad Big Data (Completada ✅)
-- Migración a arquitectura asíncrona para soportar 100.000 pacientes sin errores de memoria.
+- Migración a arquitectura asíncrona para soportar 100.000 pacientes sin errores de memoria (Versión 2.0).
 - Implementación de paginación virtual y carga diferida de registros.
+
+### Fase 5: Optimización de Ingesta y Versionado (V2.1 - Actual ✅)
+- Adaptación del motor de ingesta para soportar separadores de pipeline (`|`) habituales en sistemas de exportación heredados.
+- Implementación de un sistema de etiquetado de versiones visual en la interfaz.
+- Organización del espacio de trabajo local (`local_workspace`) para pruebas controladas.
 
 ---
 

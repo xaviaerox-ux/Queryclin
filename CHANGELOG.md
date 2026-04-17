@@ -3,6 +3,18 @@
 Todos los cambios notables realizados en el proyecto Queryclin serán documentados en este archivo, detallando el efecto del cambio y el motivo (el "por qué") de forma cronológica.
 
 ## [2026-04-17]
+### Versión 2.1 (Optimización de Ingesta y UI)
+- **Implementación de Versionado Visual:**
+  - **Archivo Modificado:** `src/App.tsx`.
+  - **Detalle:** Añadida etiqueta "V2.1" junto al logo con tooltip de fecha/hora para trazabilidad rápida de la versión desplegada.
+- **Cambio de Separador de Datos (Pipeline):**
+  - **Archivo Modificado:** `src/lib/csvParser.ts`.
+  - **Motivo:** El sistema de origen ha cambiado el formato de exportación de coma (,) a pipeline (|). Se ha ajustado el motor de parseo para ser compatible con esta nueva estructura.
+- **Organización de Repositorio y Limpieza:**
+  - **Archivos/Directorios Nuevos:** `local_workspace/`, `DIARIO_APRENDIZAJE.md`.
+  - **Archivo Modificado:** `.gitignore`.
+  - **Detalle:** Creación de un espacio de trabajo local para tests e ingestión de datos masivos que no debe sincronizarse con GitHub. Implementación de un Diario de Aprendizaje personal (ignorado en repo).
+
 ### Agregado (Despliegue y CI/CD)
 - **Habilitación de GitHub Pages:**
   - **Archivos Modificados:** `vite.config.ts`, `.github/workflows/deploy.yml` (nuevo).

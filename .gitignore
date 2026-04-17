@@ -7,5 +7,6 @@ coverage/
 .env*
 !.env.example
 # Local data and scratch
-csv_100k.csv
+local_workspace/
 scratch/
+DIARIO_APRENDIZAJE.md
