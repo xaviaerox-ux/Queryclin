@@ -11,6 +11,9 @@ Todos los cambios notables realizados en el proyecto Queryclin serán documentad
 - **Corrección de Bug Crítico en Parser CSV:**
   - **Archivo Modificado**: `src/lib/csvParser.ts`.
   - **Detalle**: Corregido fallo en la preservación de comillas que causaba truncamiento de datos cuando un campo contenía el delimitador de tubería (`|`) dentro de un texto encomillado. Detectado gracias a la nueva suite de pruebas.
+- **Centro de Ayuda y Guía Clínica Integrada:**
+  - **Archivos Nuevos/Modificados**: `src/components/Help.tsx`, `src/App.tsx`.
+  - **Detalle**: Implementación de una vista de documentación premium para el personal hospitalario. Incluye tutoriales sobre búsqueda booleana, privacidad local-first y la sección de créditos oficiales del equipo del Hospital Rafael Méndez.
 
 ### Versión 2.2 (Ultra-Escalabilidad y Precisión Clínica)
 - **Fragmentación de Metadatos (Big Data):**
@@ -42,7 +45,11 @@ Todos los cambios notables realizados en el proyecto Queryclin serán documentad
 ### Agregado (Despliegue y CI/CD)
 - **Habilitación de GitHub Pages:**
   - **Archivos Modificados:** `vite.config.ts`, `.github/workflows/deploy.yml` (nuevo).
-  - **Detalle:** Configuración de la ruta base y creación de un Workflow de GitHub Actions para el despliegue automático de la aplicación.
+  - **Detalle:**
+### Añadido
+- **Centro de Ayuda Integrado**: Nueva vista (`HelpView`) con documentación técnica sobre búsqueda booleana y privacidad local.
+- **Sección de Créditos Oficiales**: Reconocimiento al equipo de desarrollo y coordinación del Hospital Universitario Rafael Méndez.
+- **Suite de Pruebas Automatizadas**: Integración de Vitest y Playwright para asegurar la fidelidad de los datos. (V2.3)
 ### Agregado (Pruebas de Estrés)
 - **Generación de Dataset Masivo:**
   - **Archivos Modificados:** `csv_100k.csv` (nuevo), `scratch/generate_large_csv.cjs` (nuevo).

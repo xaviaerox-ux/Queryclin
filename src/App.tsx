@@ -1,11 +1,12 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Sun, Moon, Database, Users } from 'lucide-react';
+import { Sun, Moon, Database, Users, HelpCircle } from 'lucide-react';
 import { HCEData, storage } from './lib/dataStore';
 import { searchEngine, SearchResult } from './lib/searchEngine';
 import { db } from './lib/db';
 import Home from './components/Home';
 import Results from './components/Results';
 import HCEView from './components/HCEView';
+import Help from './components/Help';
 
 /**
  * Error Boundary para mitigar fallos en tiempo de renderizado
@@ -32,7 +33,7 @@ class ErrorBoundary extends React.Component<{ children: React.ReactNode }, { has
   }
 }
 
-export type ViewState = 'home' | 'results' | 'hce';
+export type ViewState = 'home' | 'results' | 'hce' | 'help';
 
 export default function App() {
   const [view, setView] = useState<ViewState>('home');
@@ -136,6 +137,13 @@ export default function App() {
             >
               {theme === 'light' ? <Moon size={20} /> : <Sun size={20} />}
             </button>
+            <button
+              onClick={() => setView('help')}
+              className={`p-2 rounded-full transition-all ${view === 'help' ? 'bg-[var(--accent-clinical)] text-white' : 'hover:bg-[var(--border-clinical)] text-[var(--text-secondary)]'}`}
+              title="Guía de uso y documentación"
+            >
+              <HelpCircle size={20} />
+            </button>
             {data && (
               <div className="flex items-center gap-6 border-l border-[var(--border-clinical)] pl-4 h-full">
                 <button 
@@ -194,6 +202,9 @@ export default function App() {
               query={query}
               onIndexChange={setSelectedIndex}
             />
+          )}
+          {view === 'help' && (
+            <Help onBack={() => setView('home')} />
           )}
         </main>
       </div>
