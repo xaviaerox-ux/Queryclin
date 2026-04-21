@@ -2,6 +2,16 @@
 
 Todos los cambios notables realizados en el proyecto Queryclin serán documentados en este archivo, detallando el efecto del cambio y el motivo (el "por qué") de forma cronológica.
 
+## [2026-04-21]
+### Versión 2.4 (Narrativa y Evolución del Sistema)
+- **Implementación de Vista "Evolución del Proyecto":**
+  - **Archivos Nuevos**: `src/components/Evolution.tsx`.
+  - **Archivo Modificado**: `src/App.tsx`.
+  - **Detalle**: Creación de una página estilo "Timeline" que narra la historia del proyecto desde los primeros laboratorios hasta el motor de búsqueda actual. El objetivo es explicar las fases técnicas (sharding, sharding, tests) de una forma accesible y visual.
+- **Badge de Versión Interactivo:**
+  - **Archivo Modificado**: `src/App.tsx`.
+  - **Detalle**: El badge de versión (`V2.4`) en el header ahora es un botón funcional que permite acceder directamente a la vista de Evolución. Se ha separado visualmente del logo principal para mejorar la UX.
+
 ## [2026-04-20]
 ### Versión 2.3 (Arquitectura de Calidad y Testing)
 - **Implementación de Suite de Pruebas (Test-Driven Reliability):**

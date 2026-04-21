@@ -7,6 +7,7 @@ import Home from './components/Home';
 import Results from './components/Results';
 import HCEView from './components/HCEView';
 import Help from './components/Help';
+import Evolution from './components/Evolution';
 
 /**
  * Error Boundary para mitigar fallos en tiempo de renderizado
@@ -33,7 +34,7 @@ class ErrorBoundary extends React.Component<{ children: React.ReactNode }, { has
   }
 }
 
-export type ViewState = 'home' | 'results' | 'hce' | 'help';
+export type ViewState = 'home' | 'results' | 'hce' | 'help' | 'evolution';
 
 export default function App() {
   const [view, setView] = useState<ViewState>('home');
@@ -122,11 +123,20 @@ export default function App() {
     <ErrorBoundary>
       <div className="h-screen flex flex-col bg-[var(--bg-clinical)] text-[var(--text-primary)] font-sans overflow-hidden">
         <header className="h-[64px] bg-[var(--glass-bg)] backdrop-blur-md border-b border-[var(--border-clinical)] px-6 flex items-center justify-between z-[100] shrink-0">
-          <div 
-            className="text-[20px] font-black tracking-tight cursor-pointer flex items-center gap-2 text-[var(--accent-clinical)]"
-            onClick={() => setView('home')}
-          >
-            <span>Query<span className="font-light text-[var(--text-primary)]">clin</span> <span className="ml-2 px-1.5 py-0.5 text-[10px] font-bold bg-[var(--accent-clinical)] text-white rounded-md opacity-80" title="Última actualización: 20/04/2026 09:45">V2.3</span></span>
+          <div className="flex items-center gap-2">
+            <div 
+              className="text-[20px] font-black tracking-tight cursor-pointer text-[var(--accent-clinical)]"
+              onClick={() => setView('home')}
+            >
+              Query<span className="font-light text-[var(--text-primary)]">clin</span>
+            </div>
+            <button 
+              onClick={() => setView('evolution')}
+              className="px-1.5 py-0.5 text-[10px] font-bold bg-[var(--accent-clinical)] text-white rounded-md opacity-80 hover:opacity-100 hover:scale-105 transition-all active:scale-95" 
+              title="Click para ver la evolución y fases del proyecto"
+            >
+              V2.4
+            </button>
           </div>
           
           <div className="flex items-center gap-4 h-full">
@@ -205,6 +215,9 @@ export default function App() {
           )}
           {view === 'help' && (
             <Help onBack={() => setView('home')} />
+          )}
+          {view === 'evolution' && (
+            <Evolution onBack={() => setView('home')} />
           )}
         </main>
       </div>
