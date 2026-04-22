@@ -28,22 +28,19 @@ Este archivo mantiene el registro acumulativo de la evolución del sistema. Las 
 - [x] Mecanismo de persistencia de sesión por seguridad (Cierre = Limpieza IDB).
 - [x] **Logro**: Alineación con el estándar de visualización HCE-Comun.
 
-## 🟡 FASE 4: Estabilización y Refinamiento (V2.5.1 - ACTUAL)
+## 🟢 FASE 4: Estabilización y Refinamiento (V2.5.3 ✅)
+- [x] **A1. Resiliencia de Ingesta**: Manejo de BOM y finales de línea mixto.
+- [x] **A2. Inicialización Dinámica**: Corrección de crashes por categorías faltantes.
+- [x] **A3. Estructura Profesional**: Ubicación limpia en `/scripts`, `/tests/data` y `/docs`.
+- [x] **A4. Consola Dashboard**: Rediseño premium con KPIs vivos en tiempo real.
+- [x] **A5. Identidad Visual**: Avatares de género (Cian/Amatista) automatizados.
+- [x] **Logro**: Sistema estéticamente alineado con su potencia técnica.
 
-**Categoría A: Estabilización Técnica (Finalizada)**
-- [x] **A1. Parser Ultra-Robusto**: Manejo de BOM, finales de línea Windows y duplicados.
-- [x] **A2. Corrección de Crash en Interfaz**: Inicialización dinámica de categorías.
-- [x] **A3. Optimización de Ingesta Masiva**: Batching reducido a 1000 registros para fluidez total.
-
-**Categoría B: Orden y Arquitectura (En curso)**
-- [x] **B1. Reorganización del Repositorio**: Mover activos a `/scripts`, `/tests/data` y `/docs`.
-- [x] **B2. Restauración de Historial**: Reconstrucción de este archivo (TASKS.md).
-- [ ] **B3. Actualización de RULES.md**: Inyectar nuevas reglas de gobernanza clínica.
-
-**Categoría C: Rediseño Dashboard Premium (Pendiente)**
-- [ ] **C1. Sincronización de Versión**: Centralizar V2.5.2 en el código.
-- [ ] **C2. Dashboard Dinámico**: Rediseño de la columna de Analytics con KPIs vivos.
-- [ ] **C3. Micro-interacciones**: Añadir transiciones suaves en el historial de búsquedas.
+## 🔵 FASE 6: Inteligencia de Población (PROPUESTA - V2.6)
+- [ ] **E1. Snapshot Médico**: Dashboard visual con gráficos de distribución poblacional.
+- [ ] **E2. Generador de Informes**: Exportación de fichas clínicas a PDF profesional.
+- [ ] **E3. Autocompletado Clínico**: Sugerencias inteligentes basadas en los datos cargados.
+- [ ] **E4. Auditoría de Términos**: Lista de las palabras más frecuentes en el dataset.
 
 ---
 *Queryclin - Sistema de Análisis Clínico Local-First*

@@ -1,5 +1,14 @@
 Todos los cambios notables realizados en el proyecto Queryclin serán documentados en este archivo, detallando el efecto del cambio y el motivo (el "por qué") de forma cronológica.
 
+## [2026-04-22]
+### Versión 2.6.0 (Inteligencia de Población y Autocompletado)
+- **Fase 6: Autocompletado Clínico Inteligente:**
+  - **Motor de Sugerencias:** Extracción automática de los 1.000 términos más frecuentes del CSV durante la ingesta.
+  - **Experiencia de Usuario (UX):** Nuevo componente desplegable con navegación por teclado (flechas/Enter), ocultación inteligente y resaltado de términos.
+  - **Persistencia Local:** Sincronización inmediata de sugerencias tras la carga de datos sin requerir reinicio.
+- **Identidad Visual Sensible al Género (Refinamiento):** Implementación de avatares dinámicos (Cian/Amatista) consistentes en todo el flujo clínico.
+- **Gobernanza:** Sincronización automática de la versión global visible en la interfaz.
+
 ## [2026-04-21]
 ### Versión 2.5 (Resolución de Auditoría y Optimización de Ingesta Masiva)
 - **Resolución de la Auditoría Clínica HCE-Comun:**

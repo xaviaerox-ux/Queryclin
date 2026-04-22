@@ -34,7 +34,7 @@ class ErrorBoundary extends React.Component<{ children: React.ReactNode }, { has
   }
 }
 
-export const VERSION = '2.5.2';
+export const VERSION = '2.6.0';
 
 export type ViewState = 'home' | 'results' | 'hce' | 'help' | 'evolution';
 
@@ -70,6 +70,7 @@ export default function App() {
         setData(loaded || { patients: {} });
         setPatientCount(count || 0);
         await searchEngine.loadIndex(loaded || { patients: {} });
+        await searchEngine.loadDictionary();
       }
     };
     initData();
@@ -115,8 +116,11 @@ export default function App() {
         }
 
         if (success) {
+          // 5. Cargar diccionario de sugerencias inmediatamente tras la indexación
+          await searchEngine.loadDictionary();
+          
           setPatientCount(count);
-          setData({ patients: {} });
+          setData({ patients: {} }); // Placeholder para indicar que hay datos en DB
           await searchEngine.loadIndex({ patients: {} }); 
           setIsProcessing(false);
         } else {
@@ -226,6 +230,7 @@ export default function App() {
               <Home 
                 onUpload={handleFileUpload} 
                 onSearch={handleSearch} 
+                getSuggestions={(q) => searchEngine.getSuggestions(q)}
                 hasData={!!data || patientCount > 0} 
                 compact={view === 'results'}
               />

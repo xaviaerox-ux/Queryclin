@@ -22,5 +22,17 @@ Este documento registra los desafíos más críticos encontrados durante el desa
 - **La Victoria**: Implementación de una "Interfaz Resiliente" que inicializa categorías bajo demanda. Si el dato existe, el sistema le hace sitio.
 - **Lección**: "El frontend debe ser defensivo ante la incertidumbre del dato".
 
+## 🛡️ Batalla 4: La API Fantasma (V2.6)
+- **El Enemigo**: Error `db.saveToStore is not a function`.
+- **El Origen**: Intento de usar un método inexistente durante la implementación del autocompletado por confusión con la API estándar de IndexedDB (hallucinación de API).
+- **La Victoria**: Reemplazo por `db.saveBatch`, el método interno correcto de nuestra capa de datos optimizada.
+- **Lección**: "Verifica siempre la firma de los métodos en la capa de persistencia antes de implementar nuevas funciones".
+
+## 🛡️ Batalla 5: La Gran Ingesta (V2.6.2)
+- **El Enemigo**: Corrupción de datos y falsos positivos en búsquedas masivas (100k).
+- **El Origen**: 1) Sobrescritura de datos en flushes parciales de IndexedDB. 2) Carga de 100k conexiones IDB simultáneas. 3) Lógica AND que actuaba como OR.
+- **La Victoria**: Implementación de un "Merge" robusto (Leer-Combinar-Escribir), caché de conexión de base de datos y filtrado por Intersección Estrictas (Strict MUST).
+- **Lección**: "La persistencia masiva requiere atomicidad y una lógica de unión que no deje a ningún paciente atrás".
+
 ---
-*Querclin Evolución - Manteniendo la casa en orden.*
+*Queryclin Evolución - Manteniendo la casa en orden.*

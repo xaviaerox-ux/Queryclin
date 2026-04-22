@@ -13,7 +13,9 @@ export interface SearchResult {
 export class SearchEngine {
   private documentCount = 0;
   private patientSkeletons: Record<string, any> = {};
+  private dictionary: string[] = []; // Diccionario de términos frecuentes
   private data: HCEData | null = null;
+  private readonly STOPWORDS = new Set(['de', 'el', 'la', 'y', 'en', 'del', 'los', 'las', 'un', 'una', 'con', 'por', 'para', 'su', 'al', 'lo', 'como', 'más', 'pero', 'sus', 'este', 'esta', 'se', 'ha', 'si', 'o', 'entre', 'cuando']);
 
   async buildIndex(data: HCEData) {
     if (!data || !data.patients) {
@@ -22,6 +24,7 @@ export class SearchEngine {
     }
     
     let index: Record<string, any> = {};
+    let globalTermCounts: Record<string, number> = {};
     this.documentCount = 0;
     const skeletons: Record<string, any> = {};
     const nhcs = Object.keys(data.patients);
@@ -33,13 +36,15 @@ export class SearchEngine {
       const nhc = nhcs[i];
       const patient = data.patients[nhc];
       
-      // Esqueleto optimizado
+      // Esqueleto optimizado (Solo guardamos campos clave para ahorrar RAM en 100k)
       skeletons[nhc] = { 
         nhc: patient.nhc, 
         demographics: patient.demographics, 
         services: new Set<string>(),
         dates: { start: Infinity, end: -Infinity }
       };
+
+      const isSampling = i < 10000;
 
       for (const idToma in patient.tomas) {
         for (const registro of patient.tomas[idToma].registros) {
@@ -72,6 +77,11 @@ export class SearchEngine {
           for (const term in termCounts) {
             if (!index[term]) index[term] = [];
             index[term].push({ nhc, idToma, ordenToma: registro.ordenToma, count: termCounts[term] });
+            
+            // Seguimiento de frecuencia global (SOLO SI ESTAMOS EN MUESTREO)
+            if (isSampling) {
+              globalTermCounts[term] = (globalTermCounts[term] || 0) + termCounts[term];
+            }
           }
         }
       }
@@ -109,6 +119,43 @@ export class SearchEngine {
       'document_count': this.documentCount,
       'last_indexed': new Date().toISOString()
     });
+
+    // 4. Generar y guardar diccionario de sugerencias (Top 1000)
+    console.log(`[SearchEngine] Generando diccionario clínico de sugerencias...`);
+    this.dictionary = Object.entries(globalTermCounts)
+      .filter(([term]) => {
+        // Filtros de calidad clínica
+        if (term.length < 3) return false; // Demasiado corto
+        if (this.STOPWORDS.has(term)) return false; // Palabra común irrelevante
+        if (/^\d+$/.test(term)) return false; // Solo números
+        return true;
+      })
+      .sort((a, b) => b[1] - a[1]) // Más frecuentes primero
+      .slice(0, 1000)
+      .map(([term]) => term);
+
+    await db.saveBatch(db.stores.metadata, { clinical_dictionary: this.dictionary });
+    
+    // LIBERACIÓN CRÍTICA DE MEMORIA
+    (globalTermCounts as any) = null;
+    
+    console.log(`[SearchEngine] Indexación completada. Diccionario: ${this.dictionary.length} términos.`);
+    console.log(`[SearchEngine] Diagnóstico: Melanie/EPOC hallados? ${nhcs.some(n => JSON.stringify(data.patients[n]).includes('EPOC'))}`);
+  }
+
+  async loadDictionary() {
+    const saved = await db.getFromStore(db.stores.metadata, 'clinical_dictionary');
+    if (saved) this.dictionary = saved;
+  }
+
+  getSuggestions(input: string): string[] {
+    if (!input || input.length < 3) return [];
+    const normalized = input.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+    
+    // Devolvemos hasta 8 sugerencias que contengan el input
+    return this.dictionary
+      .filter(term => term.includes(normalized))
+      .slice(0, 8);
   }
 
   private async flushIndexPart(partialIndex: Record<string, any>) {
@@ -133,7 +180,12 @@ export class SearchEngine {
       }
       
       // 2. Escritura masiva en UNA sola transacción
-      await db.saveBatch(db.stores.search_index, batch);
+      try {
+        await db.saveBatch(db.stores.search_index, batch);
+      } catch (err) {
+        console.error(`[SearchEngine] Error crítico guardando batch en flushIndexPart:`, err);
+        throw err;
+      }
     }
   }
 
@@ -179,27 +231,38 @@ export class SearchEngine {
     const should: string[] = [];
 
     for (let i = 0; i < rawTerms.length; i++) {
-      const term = rawTerms[i];
+      const originalTerm = rawTerms[i];
+      const termUpper = originalTerm.toUpperCase();
       const prev = rawTerms[i - 1]?.toUpperCase();
-      const tokens = this.tokenize(term);
+      const next = rawTerms[i + 1]?.toUpperCase();
+      
+      // Saltamos los operadores como palabras clave de búsqueda
+      if (termUpper === 'AND' || termUpper === 'OR' || termUpper === 'NOT') continue;
+
+      const tokens = this.tokenize(originalTerm);
       if (tokens.length === 0) continue;
       
-      if (prev === 'NOT' || term.startsWith('-')) {
+      // Ignorar stopwords en la búsqueda si no son el único término
+      if (tokens.every(t => this.STOPWORDS.has(t)) && rawTerms.length > 1) continue;
+
+      if (prev === 'NOT' || originalTerm.startsWith('-')) {
         mustNot.push(...tokens);
-      } else if (rawTerms[i+1]?.toUpperCase() === 'OR' || prev === 'OR') {
+      } else if (next === 'OR' || prev === 'OR') {
         should.push(...tokens);
       } else {
         must.push(...tokens);
       }
     }
 
+    // NORMALIZACIÓN DE MUST: Evitar fallos de longitud con términos duplicados
+    const uniqueMust = Array.from(new Set(must));
+
     if (must.length === 0 && should.length === 0) return await this.getAllRecords(filters);
 
     const patientMatches: Record<string, any> = {};
     
-    const processTerms = async (terms: string[]) => {
+    const processTerms = async (terms: string[], isMust: boolean) => {
       for (const term of terms) {
-        // CARGA BAJO DEMANDA de la DB
         const docs = await db.getFromStore(db.stores.search_index, term);
         if (!docs) continue;
 
@@ -207,20 +270,29 @@ export class SearchEngine {
         for (const doc of docs) {
           const score = doc.count * idf;
           if (!patientMatches[doc.nhc]) {
-            patientMatches[doc.nhc] = { nhc: doc.nhc, totalScore: 0, registros: {} };
+            patientMatches[doc.nhc] = { 
+              nhc: doc.nhc, 
+              totalScore: 0, 
+              registros: {}, 
+              matchedMustTokens: new Set<string>() 
+            };
           }
-          patientMatches[doc.nhc].totalScore += score;
+          
+          const pm = patientMatches[doc.nhc];
+          pm.totalScore += score;
+          if (isMust) pm.matchedMustTokens.add(term);
+          
           const regId = `${doc.idToma}_${doc.ordenToma}`;
-          if (!patientMatches[doc.nhc].registros[regId]) {
-            patientMatches[doc.nhc].registros[regId] = { idToma: doc.idToma, ordenToma: doc.ordenToma, score: 0 };
+          if (!pm.registros[regId]) {
+            pm.registros[regId] = { idToma: doc.idToma, ordenToma: doc.ordenToma, score: 0 };
           }
-          patientMatches[doc.nhc].registros[regId].score += score;
+          pm.registros[regId].score += score;
         }
       }
     };
 
-    await processTerms(must);
-    await processTerms(should);
+    await processTerms(uniqueMust, true);
+    await processTerms(should, false);
 
     // CORRECCIÓN NOT: Consultar individualmente en la base de datos
     const mustNotNhcs = new Set<string>();
@@ -235,12 +307,18 @@ export class SearchEngine {
     const filterEnd = filters?.dateRange?.[1] ? new Date(filters.dateRange[1]).getTime() : null;
 
     for (const nhc in patientMatches) {
+      const pm = patientMatches[nhc];
+      
+      // 1. FILTRO DE EXCLUSIÓN (NOT)
       if (mustNotNhcs.has(nhc)) continue;
 
-      const pm = patientMatches[nhc];
+      // 2. INTERSECCIÓN ESTRICTA (AND / MUST)
+      // El paciente DEBE tener todos los tokens marcados como obligatorios (únicos)
+      if (uniqueMust.length > 0 && pm.matchedMustTokens.size < uniqueMust.length) continue;
+
       const skeleton = this.patientSkeletons[nhc];
 
-      // FILTRO POR SERVICIO
+      // 3. FILTRO POR SERVICIO
       if (filterService && skeleton) {
         const hasService = skeleton.services.some((s: string) => s.includes(filterService));
         if (!hasService) continue;

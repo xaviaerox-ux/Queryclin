@@ -10,7 +10,11 @@ export const db = {
     search_index: 'search_index' // Almacenamiento por término
   },
 
-  open(): Promise<IDBDatabase> {
+  _db: null as IDBDatabase | null,
+  
+  async open(): Promise<IDBDatabase> {
+    if (this._db) return this._db;
+    
     return new Promise((resolve, reject) => {
       const request = indexedDB.open(this.dbName, this.version);
       request.onupgradeneeded = (e: any) => {
@@ -21,7 +25,10 @@ export const db = {
           }
         });
       };
-      request.onsuccess = () => resolve(request.result);
+      request.onsuccess = () => {
+        this._db = request.result;
+        resolve(request.result);
+      };
       request.onerror = () => reject(request.error);
     });
   },

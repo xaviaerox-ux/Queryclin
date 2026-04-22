@@ -5,6 +5,7 @@ interface HomeProps {
   hasData: boolean;
   onUpload: (file: File) => void;
   onSearch: (query: string, filters?: { dateRange?: [string, string], service?: string }) => void;
+  getSuggestions: (query: string) => string[];
   compact?: boolean;
 }
 
@@ -17,6 +18,9 @@ export default function Home({ hasData, onUpload, onSearch, compact = false }: H
   const [recentSearches, setRecentSearches] = useState<string[]>(() => {
     return JSON.parse(localStorage.getItem('queryclin_recent_searches') || '[]');
   });
+  const [suggestions, setSuggestions] = useState<string[]>([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [activeSuggestionIndex, setActiveSuggestionIndex] = useState(-1);
 
   
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -104,10 +108,87 @@ export default function Home({ hasData, onUpload, onSearch, compact = false }: H
           <input
             type="text"
             value={query}
-            onChange={(e) => setQuery(e.target.value)}
+            onChange={(e) => {
+              const val = e.target.value;
+              setQuery(val);
+              if (val.length >= 3) {
+                const suggs = getSuggestions(val);
+                setSuggestions(suggs);
+                setShowSuggestions(suggs.length > 0);
+                setActiveSuggestionIndex(-1);
+              } else {
+                setSuggestions([]);
+                setShowSuggestions(false);
+                setActiveSuggestionIndex(-1);
+              }
+            }}
+            onKeyDown={(e) => {
+              if (!showSuggestions) return;
+              
+              if (e.key === 'ArrowDown') {
+                e.preventDefault();
+                setActiveSuggestionIndex(prev => (prev < suggestions.length - 1 ? prev + 1 : prev));
+              } else if (e.key === 'ArrowUp') {
+                e.preventDefault();
+                setActiveSuggestionIndex(prev => (prev > 0 ? prev - 1 : prev));
+              } else if (e.key === 'Enter' && activeSuggestionIndex >= 0) {
+                e.preventDefault();
+                const selected = suggestions[activeSuggestionIndex];
+                setQuery(selected);
+                onSearch(selected);
+                setShowSuggestions(false);
+              } else if (e.key === 'Escape') {
+                setShowSuggestions(false);
+              }
+            }}
+            onFocus={() => {
+              if (query.length >= 3 && suggestions.length > 0) setShowSuggestions(true);
+            }}
+            onBlur={() => setTimeout(() => setShowSuggestions(false), 200)} // Delay para permitir clics
             placeholder="Identificadores, diagnóstico o hallazgos clínicos..."
             className="w-full pl-12 pr-32 py-4 text-[15px] bg-[var(--surface-clinical)] border border-[var(--border-clinical)] rounded-2xl shadow-lg focus:outline-none focus:ring-4 focus:ring-[var(--accent-clinical)]/20 focus:border-[var(--accent-clinical)] transition-all placeholder:text-[var(--text-secondary)]/50"
           />
+
+          {/* Clinical Suggestions Dropdown */}
+          {showSuggestions && (
+            <div className="absolute top-full left-0 right-16 mt-2 bg-[var(--surface-clinical)] border border-[var(--border-clinical)] rounded-xl shadow-2xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
+              <div className="p-2 border-b border-[var(--border-clinical)] bg-[var(--bg-clinical)]/50">
+                <span className="text-[9px] font-black uppercase text-[var(--text-secondary)] tracking-widest pl-2">Sugerencias Clínicas</span>
+              </div>
+              <ul className="max-h-[300px] overflow-y-auto">
+                {suggestions.map((s, idx) => (
+                  <li key={idx}>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setQuery(s);
+                        onSearch(s);
+                        setShowSuggestions(false);
+                      }}
+                      onMouseEnter={() => setActiveSuggestionIndex(idx)}
+                      className={`w-full text-left px-4 py-3 text-sm transition-colors flex items-center justify-between group ${
+                        idx === activeSuggestionIndex 
+                          ? 'bg-[var(--accent-clinical)]/10 text-[var(--accent-clinical)]' 
+                          : 'hover:bg-[var(--accent-clinical)]/5 hover:text-[var(--accent-clinical)]'
+                      }`}
+                    >
+                      <span className="flex items-center gap-2">
+                        <span className="font-bold text-[var(--text-primary)]">
+                          {s.toLowerCase().startsWith(query.toLowerCase()) ? (
+                            <>
+                              <span className="text-[var(--accent-clinical)]">{s.substring(0, query.length)}</span>
+                              {s.substring(query.length)}
+                            </>
+                          ) : s}
+                        </span>
+                      </span>
+                      <Zap size={12} className={`transition-opacity ${idx === activeSuggestionIndex ? 'opacity-40' : 'opacity-0'}`} />
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
           <div className="absolute right-3 flex items-center gap-2">
             <button
               type="button"
