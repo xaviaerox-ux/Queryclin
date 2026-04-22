@@ -36,10 +36,12 @@ Este archivo mantiene el registro acumulativo de la evolución del sistema. Las 
 - [x] **A5. Identidad Visual**: Avatares de género (Cian/Amatista) automatizados.
 - [x] **Logro**: Sistema estéticamente alineado con su potencia técnica.
 
-## 🔵 FASE 6: Inteligencia de Población (PROPUESTA - V2.6)
-- [ ] **E1. Snapshot Médico**: Dashboard visual con gráficos de distribución poblacional.
+## 🔵 FASE 5: Inteligencia de Población y Motor V2.6 (ACTUAL ✅)
+- [x] **E3. Autocompletado Clínico**: Sugerencias inteligentes basadas en muestreo de 10k (V2.6.3).
+- [x] **E5. Motor de Precisión Booleana**: Reconstrucción total de la lógica AND/OR/NOT para Big Data.
+- [x] **E6. Gestión de Ruido**: Implementación de Stopwords clínicos.
+- [ ] **E1. Snapshot Médico**: Dashboard visual con gráficos de distribución poblacional (Próximo objetivo).
 - [ ] **E2. Generador de Informes**: Exportación de fichas clínicas a PDF profesional.
-- [ ] **E3. Autocompletado Clínico**: Sugerencias inteligentes basadas en los datos cargados.
 - [ ] **E4. Auditoría de Términos**: Lista de las palabras más frecuentes en el dataset.
 
 ---

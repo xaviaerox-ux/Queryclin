@@ -1,6 +1,20 @@
 Todos los cambios notables realizados en el proyecto Queryclin serán documentados en este archivo, detallando el efecto del cambio y el motivo (el "por qué") de forma cronológica.
 
 ## [2026-04-22]
+### Versión 2.6.3 (Sello de Estabilidad y Motor de Precisión)
+- **Motor de Búsqueda de Alta Precisión (Refactorización):**
+  - **Lógica Booleana Estricta:** Implementación de "Strict MUST" (AND real) para garantizar que los resultados cumplan todas las condiciones de búsqueda, eliminando falsos positivos en 100k.
+  - **Filtrado de Ruido (Stopwords):** Integración de un catálogo de palabras comunes en español para limpiar las sugerencias y mejorar la relevancia clínica.
+  - **Detección Case-Insensitive:** Operadores `AND`/`OR` ahora se reconocen sin importar la capitalización.
+- **Optimización de Persistencia:**
+  - **Merge Robusto de Índice:** Corrección del sistema de volcado fragmentado para prevenir la pérdida de datos durante ingestas masivas.
+  - **Caché de Conexión IDB:** Implementación de conexión persistente a base de datos para estabilidad total.
+
+### Versión 2.6.1 - 2.6.2 (Scaling & Logic Patch)
+- **Muestreo Inteligente (Heurística):** Limitación de la generación del diccionario de autocompletado a 10.000 registros para mantener la ligereza de la RAM en datasets de 100k.
+- **Gestión de Memoria:** Liberación explícita de objetos pesados tras la indexación para evitar bloqueos del navegador.
+
+## [2026-04-22]
 ### Versión 2.6.0 (Inteligencia de Población y Autocompletado)
 - **Fase 6: Autocompletado Clínico Inteligente:**
   - **Motor de Sugerencias:** Extracción automática de los 1.000 términos más frecuentes del CSV durante la ingesta.

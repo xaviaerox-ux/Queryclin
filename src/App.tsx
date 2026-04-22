@@ -34,7 +34,7 @@ class ErrorBoundary extends React.Component<{ children: React.ReactNode }, { has
   }
 }
 
-export const VERSION = '2.6.0';
+export const VERSION = '2.6.3';
 
 export type ViewState = 'home' | 'results' | 'hce' | 'help' | 'evolution';
 
