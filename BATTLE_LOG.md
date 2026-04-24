@@ -34,5 +34,17 @@ Este documento registra los desafíos más críticos encontrados durante el desa
 - **La Victoria**: Implementación de un "Merge" robusto (Leer-Combinar-Escribir), caché de conexión de base de datos y filtrado por Intersección Estrictas (Strict MUST).
 - **Lección**: "La persistencia masiva requiere atomicidad y una lógica de unión que no deje a ningún paciente atrás".
 
+## 🛡️ Batalla 6: Los Pacientes Intercalados (V2.7.1)
+- **El Enemigo**: Pérdida silenciosa de datos durante la ingesta por lotes.
+- **El Origen**: El procesamiento por lotes de 5,000 registros sobrescribía los datos del paciente si este aparecía en diferentes bloques del CSV, ya que `IndexedDB.put` no fusiona objetos.
+- **La Victoria**: Implementación de un ciclo "Read-Merge-Write" en el Web Worker. Ahora el sistema lee el estado previo del paciente, fusiona las nuevas tomas y actualiza el registro completo de forma atómica.
+- **Lección**: "En arquitecturas local-first por lotes, el 'Merge' manual es obligatorio para garantizar la integridad de la historia clínica".
+
+## 🛡️ Batalla 7: La Guerra de los Límites (V3.0.0 Solid-State)
+- **El Enemigo**: Errores `Failed to read large IndexedDB value` y `Out of Memory`.
+- **El Origen**: Listas de coincidencia de palabras comunes que superaban los límites físicos de IndexedDB y saturación de RAM al cargar archivos CSV masivos.
+- **La Victoria**: Salto generacional a **Bucketing** (índice fragmentado) e **Ingesta por Streaming**. El sistema ahora es virtualmente inquebrantable ante el volumen de datos.
+- **Lección**: "La verdadera escalabilidad no es procesar más rápido, sino fragmentar de forma que el hardware nunca sienta el peso".
+
 ---
-*Queryclin Evolución - Manteniendo la casa en orden.*
+*Queryclin Evolución - Arquitectura Solid-State alcanzada.*

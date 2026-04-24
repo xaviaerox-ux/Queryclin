@@ -9,4 +9,9 @@ coverage/
 # Local data and scratch
 local_workspace/
 scratch/
+scratch_parser/
 DIARIO_APRENDIZAJE.md
+# Test results (playwright) and large generated test data files
+test-results/
+tests/data/*.csv
+STRESS_TEST_DATA.csv

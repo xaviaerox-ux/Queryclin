@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Sun, Moon, Database, Users, HelpCircle } from 'lucide-react';
-import { HCEData, storage } from './lib/dataStore';
+import { HCEData } from './lib/dataStore';
 import { searchEngine, SearchResult } from './lib/searchEngine';
 import { db } from './lib/db';
 import Home from './components/Home';
@@ -13,10 +13,9 @@ import Evolution from './components/Evolution';
  * Error Boundary para mitigar fallos en tiempo de renderizado
  */
 class ErrorBoundary extends React.Component<{ children: React.ReactNode }, { hasError: boolean }> {
-  constructor(props: any) {
-    super(props);
-    this.state = { hasError: false };
-  }
+  state: { hasError: boolean } = { hasError: false };
+  props!: { children: React.ReactNode };
+
   static getDerivedStateFromError() { return { hasError: true }; }
   render() {
     if (this.state.hasError) {
@@ -34,7 +33,7 @@ class ErrorBoundary extends React.Component<{ children: React.ReactNode }, { has
   }
 }
 
-export const VERSION = '2.6.3';
+export const VERSION = '3.4.0';
 
 export type ViewState = 'home' | 'results' | 'hce' | 'help' | 'evolution';
 
@@ -64,12 +63,11 @@ export default function App() {
         return;
       }
 
-      const loaded = await storage.loadData();
       const count = await db.getFromStore(db.stores.metadata, 'patient_count');
-      if (loaded || count) {
-        setData(loaded || { patients: {} });
-        setPatientCount(count || 0);
-        await searchEngine.loadIndex(loaded || { patients: {} });
+      if (count) {
+        setData({ patients: {} });
+        setPatientCount(count);
+        await searchEngine.loadIndex({ patients: {} });
         await searchEngine.loadDictionary();
       }
     };
@@ -105,30 +103,40 @@ export default function App() {
     const reader = new FileReader();
     reader.onload = (e) => {
       const text = e.target?.result as string;
-      const worker = new Worker(new URL('./lib/parser.worker.ts', import.meta.url), { type: 'module' });
+      const worker = new Worker(new URL('./lib/parser.worker.ts', import.meta.url) + '?v=' + Date.now(), { type: 'module' });
       worker.postMessage({ csvText: text });
       worker.onmessage = async (event) => {
-        const { success, count, error, type, progress, total } = event.data;
+        const { type, progress, total, message, patientCount } = event.data;
         
+
         if (type === 'progress') {
           console.log(`[Ingesta] Progreso: ${progress} / ${total}`);
           return;
         }
 
-        if (success) {
-          // 5. Cargar diccionario de sugerencias inmediatamente tras la indexación
-          await searchEngine.loadDictionary();
-          
-          setPatientCount(count);
-          setData({ patients: {} }); // Placeholder para indicar que hay datos en DB
-          await searchEngine.loadIndex({ patients: {} }); 
+        if (type === 'complete') {
+          try {
+            console.log("[App] Ingesta completada. Sincronizando interfaz...");
+            await searchEngine.loadIndex({ patients: {} }); 
+            await searchEngine.loadDictionary();
+            
+            setPatientCount(patientCount);
+            // IMPORTANTE: Informar a la UI de que los datos están listos
+            setData({ patients: searchEngine.getPatientSkeletons() }); 
+            setIsProcessing(false);
+            worker.terminate();
+          } catch (err: any) {
+            console.error("[App] Error al cargar el índice tras la ingesta:", err);
+            alert("Error al activar el buscador: " + err.message);
+            setIsProcessing(false);
+            worker.terminate();
+          }
+        } else if (type === 'error') {
+          console.error("Error en el worker:", message);
+          alert("Error crítico durante la ingesta: " + message);
           setIsProcessing(false);
-        } else {
-          console.error("Error en el worker:", error);
-          alert("Error crítico durante la ingesta: " + error);
-          setIsProcessing(false);
+          worker.terminate();
         }
-        worker.terminate();
       };
 
 
@@ -148,14 +156,24 @@ export default function App() {
     setView('results');
   };
 
-  const handleClearData = () => {
+  const handleClearData = async () => {
     // Tarea B1: Confirmación de Borrado
     if (window.confirm("¿Está seguro de que desea eliminar todos los registros clínicos de la memoria? Esta acción no se puede deshacer y requerirá volver a importar el archivo CSV.")) {
-      db.clear();
-      setData(null);
-      setPatientCount(0);
-      setView('home');
-      setSearchResults([]);
+      try {
+        setIsProcessing(true);
+        await db.clear();
+        searchEngine.startIndexing(); // Reinicia el estado interno del buscador
+        setData(null);
+        setPatientCount(0);
+        setSearchResults([]);
+        setView('home');
+        setIsProcessing(false);
+        console.log("[UI] Estado reseteado tras limpieza de DB.");
+      } catch (err) {
+        console.error("Error al limpiar la base de datos:", err);
+        alert("No se pudo limpiar la base de datos completamente.");
+        setIsProcessing(false);
+      }
     }
   };
 

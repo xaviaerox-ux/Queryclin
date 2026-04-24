@@ -43,7 +43,7 @@ function PatientAvatar({ gender, size = 28 }: { gender: 'male' | 'female' | 'neu
   );
 }
 
-function ResultCard({ res, onSelect }: { res: SearchResult, onSelect: (r: SearchResult) => void }) {
+function ResultCard({ res, onSelect }: { key?: string; res: SearchResult, onSelect: (r: SearchResult) => void }) {
   const [patient, setPatient] = useState<Patient | null>(null);
   const [loading, setLoading] = useState(true);
 

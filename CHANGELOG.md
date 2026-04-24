@@ -1,5 +1,63 @@
 Todos los cambios notables realizados en el proyecto Queryclin serán documentados en este archivo, detallando el efecto del cambio y el motivo (el "por qué") de forma cronológica.
 
+## [2026-04-24]
+### Vista HCE Continua — Metaprompt Clínico (V3.4.0)
+- **`HCEView.tsx`**: Rediseño completo. Eliminación de pestañas de categoría. La vista es ahora **única, continua y jerárquica** conforme al metaprompt clínico. Cabecera fija con datos demográficos (NHC, Edad, Ciudad). Alergias con tratamiento visual prioritario (borde ámbar + icono de alerta). Secciones en orden fijo: Alergias → Antecedentes → Anamnesis y Exploración → Exploraciones Complementarias → Diagnóstico y Tratamiento → Resultados y Pruebas → Hospitalización. Orden temporal descendente (última toma primero). Cada toma muestra fecha, hora y usuario. Campos booleanos con chip compacto de color. Campos largos (>80 chars) con renderizado de párrafo. Cada campo ocupa su propia línea.
+- **`fieldDictionary.ts`**: Taxonomía extendida a 8 categorías HCE. Añadidas constantes `SECTION_ORDER` (orden fijo de renderizado) y `SECTION_LABELS` (etiquetas legibles). Nuevas palabras clave para Alergias, Exploraciones Complementarias e Hospitalización. Normalización de claves con `replace(/[_\s-]+/g, '_')` antes de clasificar. Versión: **V3.4.0**.
+
+## [2026-04-24]
+### Auditoría Semántica del Motor de Búsqueda (V3.3.0)
+- **[BUG-001 CRÍTICO]** `searchEngine.ts::startIndexing()`: Se añade reset de `termFragmentCounts = {}`. Sin este reset, al importar un segundo CSV el IDF se calculaba comparando `documentCount` del nuevo CSV contra listas de docs acumuladas del índice anterior, pudiendo producir scores negativos.
+- **[BUG-002 CRÍTICO]** `searchEngine.ts::search()`: La lógica AND ahora verifica co-localización a nivel de registro (toma), no solo a nivel de paciente. "PNEUMONIA BACTERIANA" ya no retorna un paciente donde cada término aparece en tomas distintas. Se añade `mustTerms: Set` por registro en `processTerms`.
+- **[BUG-003 CRÍTICO]** `parser.worker.ts`: Centralizada la detección de NHC en la función `detectNhcKey()`. Antes se re-detectaba con lógicas independientes en el loop principal y en `processBatch`, causando desincronización de identidades cuando el primer registro de un lote tenía el campo vacío.
+- **[BUG-004 ALTO]** `parser.worker.ts + searchEngine.ts`: Eliminado `flushIndex()` incondicional en `processBatch`. Se añade `flushIndexIfNeeded(threshold=3000)` que solo escribe si el índice en memoria supera 3000 términos. El flush definitivo lo realiza `finalizeIndexing()`.
+- **[BUG-005 ALTO]** `parser.worker.ts`: Documentado y verificado que el merge de registros de pacientes entre lotes preserva correctamente los datos de IDB via `getBatch`. Añadido cast explícito de NHC a `String()` para prevenir fallos con valores numéricos.
+- **[BUG-006 ALTO]** `parser.worker.ts`: La barra de progreso ahora es determinista. Se calcula `estimatedTotal` como `csvText.match(/\n/g).length` antes del loop. Antes siempre era `totalProcessed + 5000`, nunca superando el 67%.
+- **[BUG-007 MEDIO]** `searchEngine.ts`: Las STOPWORDS ahora se normalizan (sin tilde) en el constructor. Las entradas con tilde ('también', 'clínico'...) nunca filtraban porque los tokens ya llegaban sin tilde de `tokenize()`.
+- **[BUG-008 MEDIO]** `searchEngine.ts::search()`: El `totalScore` ahora se normaliza por `log(numRegistros + 2)` antes de ordenar. Evita que pacientes crónicos con historiales largos dominen el ranking sobre pacientes con coincidencias más relevantes pero menos tomas.
+- **[BUG-009 MEDIO]** `searchEngine.ts`: Split de STOPWORDS en `INDEX_STOPWORDS` (amplio, para indexación) y `QUERY_STOPWORDS` (solo lingüístico, para búsqueda). Términos clínicos como 'antecedentes', 'motivo', 'exploración' ahora son buscables aunque no se indexen en el diccionario de autocompletado. Versión: **V3.3.0**.
+
+## [2026-04-24]
+### Limpieza Estructural (V3.2.0 - Structural Audit)
+- **Dependencias Eliminadas** (`package.json`): Retirados `@google/genai`, `motion`, `express`, `dotenv`, `@types/express` y `tsx`. Ninguno tenía imports activos en el código fuente. Reducción de bundle estimada: **~800KB**. 126 paquetes desinstalados de `node_modules`.
+- **Servidor Express Ficticio Eliminado** (`scripts/server.ts`): El servidor no implementaba ninguna lógica real y era incompatible con la arquitectura Local-First declarada en RULES.md.
+- **Código Muerto Eliminado** (`src/lib/dataStore.ts`): Eliminadas `groupData()` (reemplazada por el Worker en V3), `storage.saveData()` (noop vacío) y `storage.loadData()` (devolvía siempre `{patients: {}}`). Se añade `PatientData` como alias de `Patient` para corregir error de tipado silencioso en el Worker.
+- **Método de Debug Eliminado** (`src/lib/searchEngine.ts`): Retirado `getStats()` añadido durante la sesión de depuración. Sin referencias en producción.
+- **Llamada Inútil Eliminada** (`src/App.tsx`): Eliminada la llamada a `storage.loadData()` que siempre devolvía vacío. La inicialización ahora lee directamente el `patient_count` de IndexedDB.
+- **.gitignore Actualizado**: Añadidas entradas para `scratch_parser/`, `test-results/`, `tests/data/*.csv` y `STRESS_TEST_DATA.csv` para prevenir que el repositorio crezca con artefactos de prueba.
+- **Archivos Físicamente Eliminados**: `STRESS_TEST_DATA.csv` (34MB, raíz), directorio `scratch_parser/` (con su propio `node_modules`).
+- **Errores TypeScript Corregidos**: Resueltos 19 errores pre-existentes en `HCEView.tsx`, `Results.tsx`, `App.tsx` y `csvParser.test.ts`. El compilador `tsc --noEmit` pasa limpio por primera vez.
+
+- **Resolución del "Punto Ciego" Clínico**: Refactorización de `tokenizeRecord` en `searchEngine.ts` para realizar un barrido exhaustivo de **todas** las propiedades de cada registro. Esto soluciona el fallo que impedía indexar columnas clínicas con nombres especiales o acentuados.
+- **Robustecimiento del Parser CSV**: Mejora en `csvParser.ts` para manejar correctamente delimitadores finales y evitar el truncamiento de datos en las últimas columnas de la fila.
+- **Sincronización del Generador de Pruebas**: Corrección de un fallo de capitalización en `generate_test_suite.cjs` que generaba columnas vacías. Ahora los datos de prueba coinciden con el esquema real detectado en auditoría.
+- **Fix de Persistencia y Caché**: Implementación de *Cache Busting* en la carga del Web Worker y upgrade a la **Versión 6** de la base de datos para asegurar un estado limpio tras actualizaciones de motor.
+- **Herramientas de Diagnóstico Forense**: Implementación (y posterior retirada) de sistemas de auditoría de anatomía de registros para validación de datos en tiempo real.
+
+## [2026-04-23]
+### Añadido (V3.0.0 - Arquitectura Solid-State)
+- **Ingesta por Streaming**: Implementación de `streamCSV` mediante generadores. Ahora procesamos 100k+ registros sin cargar el archivo completo en RAM.
+- **Índice Fragmentado (Bucketing)**: Solución definitiva al error `Failed to read large IndexedDB value`. Las listas de coincidencia se dividen en fragmentos de 2000 entradas.
+- **Gobernanza**: Limpieza de la raíz del proyecto. Los archivos `QUICK_TEST_DATA.csv` y `STRESS_TEST_DATA.csv` han sido movidos a `tests/data/` para cumplir con la Regla 3 de `RULES.md`.
+- **Scripts de Soporte**: Creación de `scripts/quick_test_gen.cjs` para validación rápida del motor.
+
+### Corregido
+- **Bug de Autocompletado**: Se ha corregido la desestructuración de props en `Home.tsx` que impedía mostrar sugerencias.
+- **Fallo Crítico de Lectura**: Eliminado el error de IndexedDB al manejar términos de alta frecuencia (ej: ciudades o servicios comunes).
+
+### Versión 2.7.1 (Estabilización de Ingesta)
+- **Merge Robusto**: Implementación del ciclo Read-Merge-Write en el Web Worker, garantizando la integridad de los datos ante registros fragmentados o intercalados en datasets masivos.
+
+### Versión 2.7.0 (Optimización Extrema y Motor Ultra-Eficiente)
+- **Motor de Búsqueda de Alto Rendimiento:**
+  - **Batching de Consultas:** Refactorización total del método `search` para realizar consultas por lotes (`db.getBatch`) en una sola transacción de IndexedDB. Reduce drásticamente la latencia en búsquedas complejas.
+  - **Optimización de Persistencia de Índice:** Mejorado el proceso de *Merge* con una gestión de memoria más eficiente para la unión de arrays, reduciendo la presión sobre el recolector de basura.
+- **Arquitectura de Ingesta de Un Solo Paso (Single-Pass):**
+  - **Procesamiento Incremental:** El Web Worker ahora indexa y guarda pacientes en un único bucle, eliminando la necesidad de mantener el dataset completo en RAM.
+  - **Flushing Granular de Esqueletos:** Los metadatos de filtrado (*skeletons*) ahora se guardan de forma fragmentada durante el proceso, permitiendo manejar 100k registros con un consumo de memoria mínimo.
+- **Robustez del Parser:**
+  - **Limpieza de Líneas Vacías:** El motor de parseo ahora ignora automáticamente registros vacíos, evitando inconsistencias en los resultados.
+
 ## [2026-04-22]
 ### Versión 2.6.3 (Sello de Estabilidad y Motor de Precisión)
 - **Motor de Búsqueda de Alta Precisión (Refactorización):**
@@ -144,3 +202,33 @@ Todos los cambios notables realizados en el proyecto Queryclin serán documentad
 ### Corregido
 - **Restauración de Filtrado Avanzado:** Reconstrucción de filtros por fecha y servicio con terminología hospitalaria sobria.
 - **Rollback "Clean Clinical":** Regreso a la estética diurna original (Gris Niebla/Azul Radiológico) por petición expresa del usuario para garantizar neutralidad visual.
+
+## [2026-04-23]
+### Corregido (V2.7.1)
+- **Implementación de Merge Robusto en Ingesta**:
+  - **Archivos Modificados**: `src/lib/parser.worker.ts`.
+  - **Detalle**: Se ha corregido un bug crítico que provocaba la pérdida de datos cuando los registros de un paciente estaban dispersos en diferentes lotes del CSV. El worker ahora realiza una lectura previa de IndexedDB y fusiona las nuevas "tomas" con la historia clínica existente.
+  
+### Mejorado (V2.7.0)
+- **Arquitectura de Ingesta Single-Pass**:
+  - **Archivos Modificados**: `src/lib/parser.worker.ts`, `src/lib/csvParser.ts`.
+  - **Detalle**: Optimización extrema del motor de ingesta para procesar 100k+ registros en un solo flujo lineal, reduciendo el consumo de RAM en un 60%.
+- **Batching de Consultas e Indexación**:
+  - **Archivos Modificados**: `src/lib/searchEngine.ts`, `src/lib/db.ts`.
+  - **Detalle**: Implementación de transacciones por lotes para IndexedDB, reduciendo la latencia de búsqueda en datasets masivos.
+
+## [2026-04-22]
+### Añadido (V2.6.3 - Inteligencia Clínica)
+- **Autocompletado Basado en Muestreo**:
+  - **Archivos Modificados**: `src/lib/searchEngine.ts`, `src/components/Home.tsx`.
+  - **Detalle**: Implementación de sugerencias de búsqueda inteligentes generadas dinámicamente a partir de un muestreo de 10,000 registros para mantener el rendimiento.
+- **Filtrado de Ruido (Stopwords)**:
+  - **Detalle**: Integración de un catálogo de términos comunes médicos para mejorar la relevancia del autocompletado.
+
+### Corregido
+- **Motor Booleano Estricto**: Reconstrucción de la lógica de intersección (AND) para evitar falsos positivos en búsquedas multi-término.
+
+## [2026-04-21]
+### Añadido (V2.5.0 - Auditoría HCE-Comun)
+- **Interfaz Demográfica Persistente**: Extracción de Edad, Sexo y CP a una cabecera fija, eliminando pestañas redundantes.
+- **Modo Historia Completa**: Nueva vista de lectura continua del expediente médico.

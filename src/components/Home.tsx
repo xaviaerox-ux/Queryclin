@@ -9,7 +9,7 @@ interface HomeProps {
   compact?: boolean;
 }
 
-export default function Home({ hasData, onUpload, onSearch, compact = false }: HomeProps) {
+export default function Home({ hasData, onUpload, onSearch, getSuggestions, compact = false }: HomeProps) {
   const [query, setQuery] = useState('');
   const [showFilters, setShowFilters] = useState(false);
   const [dateStart, setDateStart] = useState('');

@@ -28,6 +28,24 @@ vi.mock('../db', () => ({
       if (key === 'document_count') return 2;
       return null;
     }),
+    getBatch: vi.fn(async (store, keys) => {
+      const results: Record<string, any> = {};
+      keys.forEach(key => {
+        if (store === 'search_index' && mockDb[key]) {
+          results[key] = mockDb[key];
+        }
+        // Para esqueletos y otros metadatos
+        if (store === 'metadata') {
+          if (key === 'skeleton_fragments') results[key] = 1;
+          if (key === 'skeletons_frag_0') results[key] = { 
+            '123': { nhc: '123', services: ['urgencias'], dates: { start: 0, end: 100 } },
+            '456': { nhc: '456', services: ['urgencias'], dates: { start: 50, end: 150 } }
+          };
+          if (key === 'document_count') results[key] = 2;
+        }
+      });
+      return results;
+    }),
     open: vi.fn()
   }
 }));

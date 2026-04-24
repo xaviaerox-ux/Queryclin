@@ -1,5 +1,10 @@
 import { describe, it, expect } from 'vitest';
-import { parseCSV } from '../csvParser';
+import { streamCSV } from '../csvParser';
+
+// Helper para convertir el generador a array (igual que haría el Worker)
+function parseCSV(csv: string): any[] {
+  return Array.from(streamCSV(csv));
+}
 
 describe('csvParser', () => {
   it('debe parsear correctamente un CSV con delimitador pipeline (|)', () => {

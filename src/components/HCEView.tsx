@@ -1,10 +1,12 @@
-import { useState, useMemo, useEffect } from 'react';
-import { HCEData } from '../lib/dataStore';
-import { FieldCategory, classifyField } from '../lib/fieldDictionary';
+import { useState, useEffect, useMemo } from 'react';
 import { SearchResult } from '../lib/searchEngine';
-import { ArrowLeft, ChevronLeft, ChevronRight, User } from 'lucide-react';
+import { ArrowLeft, ChevronLeft, ChevronRight, User, AlertTriangle, Activity } from 'lucide-react';
 import HighlightedText from './HighlightedText';
+import { db } from '../lib/db';
+import { Patient, Toma, getGender } from '../lib/dataStore';
+import { FieldCategory, SECTION_ORDER, SECTION_LABELS, classifyField } from '../lib/fieldDictionary';
 
+// ─── Tipos Internos ────────────────────────────────────────────────────────────
 interface HCEViewProps {
   results: SearchResult[];
   currentIndex: number;
@@ -13,384 +15,354 @@ interface HCEViewProps {
   query: string;
 }
 
-import { db } from '../lib/db';
-import { Patient, getGender } from '../lib/dataStore';
+// Campos técnicos internos que nunca se muestran en la vista clínica
+const INTERNAL_FIELDS = new Set([
+  'IDTOMA','ORDENTOMA','NHCID','CONTADOR','NHC_ID','NHC','CIPA','ID_TOMA','ORDEN_TOMA',
+]);
 
-function PatientAvatar({ gender, size = 24 }: { gender: 'male' | 'female' | 'neutral', size?: number }) {
-  const config = {
-    male: {
-      bg: 'bg-cyan-500/10',
-      text: 'text-cyan-500',
-      border: 'border-cyan-500/20',
-      Icon: User
-    },
-    female: {
-      bg: 'bg-purple-400/10',
-      text: 'text-purple-400',
-      border: 'border-purple-400/20',
-      Icon: User
-    },
-    neutral: {
-      bg: 'bg-[var(--accent-clinical)]/10',
-      text: 'text-[var(--accent-clinical)]',
-      border: 'border-[var(--accent-clinical)]/20',
-      Icon: User
-    }
-  };
+function isInternalField(key: string): boolean {
+  const uk = key.toUpperCase().replace(/[^A-Z0-9]/g, '');
+  return INTERNAL_FIELDS.has(uk) || uk === 'NHC';
+}
 
-  const { bg, text, border, Icon } = config[gender];
-
+// ─── Avatar de Paciente ────────────────────────────────────────────────────────
+function PatientAvatar({ gender, size = 28 }: { gender: 'male' | 'female' | 'neutral'; size?: number }) {
+  const cfg = {
+    male:    { bg: 'bg-cyan-500/10',    text: 'text-cyan-500',    border: 'border-cyan-500/20' },
+    female:  { bg: 'bg-purple-400/10',  text: 'text-purple-400',  border: 'border-purple-400/20' },
+    neutral: { bg: 'bg-[var(--accent-clinical)]/10', text: 'text-[var(--accent-clinical)]', border: 'border-[var(--accent-clinical)]/20' },
+  }[gender];
   return (
-    <div className={`w-12 h-12 ${bg} ${text} ${border} border rounded-xl flex items-center justify-center flex-shrink-0 shadow-sm`}>
-      <Icon size={size} />
+    <div className={`w-14 h-14 ${cfg.bg} ${cfg.text} ${cfg.border} border-2 rounded-2xl flex items-center justify-center flex-shrink-0 shadow-sm`}>
+      <User size={size} />
     </div>
   );
 }
 
-const TABS: FieldCategory[] = [
-  'Antecedentes',
-  'Anamnesis y Exploración',
-  'Diagnóstico y Tratamiento',
-  'Resultados',
-  'Hospitalización',
-  'OTROS'
-];
+// ─── Chip de Dato Demográfico ──────────────────────────────────────────────────
+function DemoChip({ label, value }: { key?: string; label: string; value: string }) {
+  return (
+    <span className="inline-flex items-center gap-2 bg-[var(--bg-clinical)] border border-[var(--border-clinical)] px-3 py-1.5 rounded-lg text-[12px]">
+      <span className="text-[9px] font-black uppercase tracking-widest text-[var(--text-secondary)] opacity-70">{label}</span>
+      <span className="font-bold text-[var(--text-primary)]">{value}</span>
+    </span>
+  );
+}
 
+// ─── Campo Clínico Individual ──────────────────────────────────────────────────
+function ClinicalField({ label, value, query, highlight }: { key?: string; label: string; value: string; query: string; highlight?: boolean }) {
+  const isLong = value.length > 80;
+  const isBoolean = ['SI','NO','SÍ','TRUE','FALSE','POSITIVO','NEGATIVO'].includes(value.trim().toUpperCase());
 
+  return (
+    <div className={`flex flex-col gap-1.5 ${highlight ? 'bg-[var(--accent-clinical)]/5 rounded-xl p-3 -mx-3' : ''}`}>
+      <span className="text-[9px] font-black uppercase tracking-[0.15em] text-[var(--accent-clinical)]/60 leading-none">
+        {label.replace(/_/g, ' ')}
+      </span>
+      {isBoolean ? (
+        <span className={`inline-flex items-center gap-1.5 self-start px-3 py-1 rounded-lg text-[12px] font-black uppercase tracking-wide ${
+          ['SI','SÍ','TRUE','POSITIVO'].includes(value.trim().toUpperCase())
+            ? 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/20'
+            : 'bg-red-500/10 text-red-500 border border-red-500/20'
+        }`}>
+          {value}
+        </span>
+      ) : isLong ? (
+        <p className="text-[14px] text-[var(--text-primary)] leading-[1.75] whitespace-pre-wrap font-normal">
+          <HighlightedText text={value} query={query} />
+        </p>
+      ) : (
+        <span className="text-[15px] text-[var(--text-primary)] font-medium leading-snug">
+          <HighlightedText text={value} query={query} />
+        </span>
+      )}
+    </div>
+  );
+}
+
+// ─── Cabecera de Sección Clínica ───────────────────────────────────────────────
+function SectionHeader({ label, count }: { label: string; count: number }) {
+  return (
+    <div className="flex items-center gap-4 mt-8 mb-4">
+      <div className="h-[1px] w-6 bg-[var(--accent-clinical)]/40 flex-shrink-0" />
+      <span className="text-[10px] font-black uppercase tracking-[0.2em] text-[var(--accent-clinical)]/70 whitespace-nowrap flex-shrink-0">
+        {label}
+      </span>
+      {count > 0 && (
+        <span className="text-[9px] font-black bg-[var(--accent-clinical)]/10 text-[var(--accent-clinical)] px-2 py-0.5 rounded-full">
+          {count}
+        </span>
+      )}
+      <div className="h-[1px] flex-1 bg-[var(--border-clinical)]" />
+    </div>
+  );
+}
+
+// ─── Separador Temporal de Toma ────────────────────────────────────────────────
+function TomaDivider({ idToma, fecha, hora, usuario, index }: { idToma: string; fecha: string; hora: string; usuario: string; index: number }) {
+  return (
+    <div className={`flex items-center gap-4 ${index === 0 ? 'mt-2' : 'mt-10'} mb-5`}>
+      <div className={`w-3 h-3 rounded-full flex-shrink-0 ${index === 0 ? 'bg-[var(--accent-clinical)]' : 'bg-[var(--border-clinical)]'}`} />
+      <div className="flex flex-col gap-0.5">
+        <div className="flex items-center gap-3 flex-wrap">
+          {fecha && <span className="text-[13px] font-black text-[var(--text-primary)]">{fecha}</span>}
+          {hora && <span className="text-[12px] font-medium text-[var(--text-secondary)]">{hora}</span>}
+          {index === 0 && (
+            <span className="text-[9px] font-black uppercase tracking-widest bg-[var(--accent-clinical)] text-white px-2 py-0.5 rounded-full">
+              Última toma
+            </span>
+          )}
+        </div>
+        <div className="flex items-center gap-2 text-[11px] text-[var(--text-secondary)]">
+          <span className="font-mono font-bold opacity-60">#{idToma}</span>
+          {usuario && <><span className="opacity-40">·</span><span>{usuario}</span></>}
+        </div>
+      </div>
+      <div className="flex-1 h-[1px] bg-[var(--border-clinical)]" />
+    </div>
+  );
+}
+
+// ─── Bloque de Registro (una toma) ────────────────────────────────────────────
+function RegistroBlock({ registro, query, isFirst }: { key?: string; registro: any; query: string; isFirst: boolean }) {
+  const data = registro.data as Record<string, string>;
+  const queryTokens = query.toLowerCase().split(/\s+/).filter(t => t.length > 1);
+
+  // Extraer metadatos temporales
+  const fechaKey = Object.keys(data).find(k => k.toUpperCase().includes('FECHA_TOMA') || k.toUpperCase().includes('FECHA_OBS'));
+  const horaKey  = Object.keys(data).find(k => k.toUpperCase().includes('HORA_TOMA') || k.toUpperCase().includes('HORA'));
+  const userKey  = Object.keys(data).find(k => k.toUpperCase().includes('USUARIO'));
+
+  const fecha   = fechaKey ? data[fechaKey] : '';
+  const hora    = horaKey  ? data[horaKey]  : '';
+  const usuario = userKey  ? data[userKey]  : '';
+
+  // Agrupar campos por categoría HCE
+  const sections: Record<FieldCategory, { key: string; value: string }[]> = {} as any;
+  for (const cat of SECTION_ORDER) sections[cat] = [];
+
+  for (const [k, v] of Object.entries(data)) {
+    if (!v || String(v).trim() === '') continue;
+    if (isInternalField(k)) continue;
+    if (k === fechaKey || k === horaKey || k === userKey) continue;
+    const cat = classifyField(k);
+    if (!sections[cat]) sections[cat] = [];
+    sections[cat].push({ key: k, value: String(v) });
+  }
+
+  // Campos de alerta (alergia) para tratamiento visual especial
+  const alergiaSection = sections['Alergias y Motivo'];
+
+  return (
+    <div className={`pb-2 ${!isFirst ? 'border-t border-[var(--border-clinical)] pt-2' : ''}`}>
+      <TomaDivider
+        idToma={registro.ordenToma}
+        fecha={fecha}
+        hora={hora}
+        usuario={usuario}
+        index={isFirst ? 0 : 1}
+      />
+
+      {/* ALERGIAS — tratamiento visual prioritario */}
+      {alergiaSection.length > 0 && (
+        <div className="bg-amber-500/5 border border-amber-500/20 rounded-2xl p-5 mb-1">
+          <div className="flex items-center gap-2 mb-4">
+            <AlertTriangle size={14} className="text-amber-500 flex-shrink-0" />
+            <span className="text-[10px] font-black uppercase tracking-[0.18em] text-amber-500/80">
+              {SECTION_LABELS['Alergias y Motivo']}
+            </span>
+          </div>
+          <div className="flex flex-col gap-4">
+            {alergiaSection.map(f => (
+              <ClinicalField
+                key={f.key}
+                label={f.key}
+                value={f.value}
+                query={query}
+                highlight={queryTokens.some(t => f.value.toLowerCase().includes(t))}
+              />
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* RESTO DE SECCIONES en orden fijo */}
+      {SECTION_ORDER.filter(s => s !== 'Alergias y Motivo').map(section => {
+        const fields = sections[section];
+        if (!fields || fields.length === 0) return null;
+        return (
+          <div key={section}>
+            <SectionHeader label={SECTION_LABELS[section]} count={fields.length} />
+            <div className="flex flex-col gap-5">
+              {fields.map(f => (
+                <ClinicalField
+                  key={f.key}
+                  label={f.key}
+                  value={f.value}
+                  query={query}
+                  highlight={queryTokens.some(t => f.value.toLowerCase().includes(t))}
+                />
+              ))}
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+// ─── Componente Principal ──────────────────────────────────────────────────────
 export default function HCEView({ results, currentIndex, onIndexChange, onBack, query }: HCEViewProps) {
   const currentResult = results[currentIndex];
-  // El paciente real se cargará asíncronamente desde DB
   const [patient, setPatient] = useState<Patient | null>(null);
   const [loading, setLoading] = useState(true);
-  
-  const [selectedTomaId, setSelectedTomaId] = useState(currentResult.bestMatchUrl.idToma);
-  const [selectedOrdenToma, setSelectedOrdenToma] = useState(currentResult.bestMatchUrl.ordenToma);
-  const [activeTab, setActiveTab] = useState<FieldCategory>('Anamnesis y Exploración');
-  const [showFullHistory, setShowFullHistory] = useState(false);
 
-
+  // Cargar paciente completo desde IndexedDB
   useEffect(() => {
+    let active = true;
     const loadPatient = async () => {
       setLoading(true);
-      setPatient(null); // Resetear datos para evitar que se mezclen con el anterior
+      setPatient(null);
       const fullPatient = await db.getFromStore(db.stores.patients, currentResult.nhc);
-      if (fullPatient) {
+      if (active && fullPatient) {
         setPatient(fullPatient);
         setLoading(false);
       }
     };
     loadPatient();
+    return () => { active = false; };
   }, [currentResult.nhc]);
 
-  useEffect(() => {
-    if (!patient) return;
-    
-    // Si el ID de toma es N/A (procedente de lista completa), elegimos la última toma disponible
-    let tomaId = currentResult.bestMatchUrl.idToma;
-    let ordenToma = currentResult.bestMatchUrl.ordenToma;
-
-    if (tomaId === 'N/A') {
-      const allTomaIds = Object.keys(patient.tomas);
-      tomaId = allTomaIds[allTomaIds.length - 1]; // Última toma
-      ordenToma = patient.tomas[tomaId].latest.ordenToma;
-    }
-
-    setSelectedTomaId(tomaId);
-    setSelectedOrdenToma(ordenToma);
-
-    // Auto-detectar la pestaña que contiene el primer match (solo si hay consulta)
-    if (query) {
-      const currentToma = patient.tomas[tomaId];
-      const currentReg = currentToma?.registros.find(r => r.ordenToma === ordenToma);
-      
-      if (currentReg) {
-        const tokens = query.toLowerCase().split(/\s+/).filter(t => t.length > 1 && !['AND', 'OR', 'NOT'].includes(t.toUpperCase()));
-        for (const [key, value] of Object.entries(currentReg.data)) {
-          if (tokens.some(token => value.toLowerCase().includes(token))) {
-            const category = classifyField(key);
-            setActiveTab(category);
-            break;
-          }
-        }
-      }
-    }
-  }, [currentResult.nhc, currentResult.bestMatchUrl.idToma, currentResult.bestMatchUrl.ordenToma, query, patient]);
-
-  // Efecto para scroll automático al primer resaltado
+  // Scroll automático al primer highlight
   useEffect(() => {
     const timer = setTimeout(() => {
-      const firstMatch = document.querySelector('.highlight-match');
-      if (firstMatch) {
-        firstMatch.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      }
-    }, 300); // Pequeño delay para asegurar que el DOM y la pestaña han cargado
+      const el = document.querySelector('.highlight-match');
+      if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }, 350);
     return () => clearTimeout(timer);
-  }, [activeTab, selectedOrdenToma]);
+  }, [currentResult.nhc, query]);
 
-  const toma = patient?.tomas[selectedTomaId];
-  const registro = toma?.registros.find(r => r.ordenToma === selectedOrdenToma) || toma?.latest;
-
-  const categorizedFields = useMemo(() => {
-    const result = {} as Record<FieldCategory, { key: string; value: string }[]>;
-    TABS.forEach(tab => {
-      result[tab as FieldCategory] = [];
+  // Ordenar tomas descendente (más reciente primero)
+  const sortedTomas = useMemo(() => {
+    if (!patient) return [];
+    return (Object.values(patient.tomas) as Toma[]).sort((a, b) => {
+      const getTime = (t: Toma) => {
+        const dateKey = Object.keys(t.latest.data).find(k => k.toUpperCase().includes('FECHA_TOMA'));
+        if (!dateKey || !t.latest.data[dateKey]) return 0;
+        let d = t.latest.data[dateKey] as string;
+        if (d.includes('/')) {
+          const p = d.split('/');
+          if (p.length === 3) d = `${p[2]}-${p[1]}-${p[0]}`;
+        }
+        return new Date(d).getTime() || 0;
+      };
+      return getTime(b) - getTime(a);
     });
-    
-    if (!registro) return result;
-
-    for (const [key, value] of Object.entries(registro.data)) {
-      if (!value || String(value).trim() === '') continue;
-      const category = classifyField(key);
-      
-      // Inicialización bajo demanda si la categoría no está en TABS (ej: Demografía)
-      if (!result[category]) {
-        result[category] = [];
-      }
-      
-      result[category].push({ key, value: String(value) });
-    }
-    return result;
-  }, [registro]);
-
-  if (loading || !patient) return (
-    <div className="flex flex-col items-center justify-center h-full gap-4 py-20">
-      <div className="w-10 h-10 border-4 border-[var(--accent-clinical)] border-t-transparent rounded-full animate-spin"></div>
-      <p className="text-[var(--text-secondary)] font-bold">Recuperando historial clínico del NHC {currentResult.nhc}...</p>
-    </div>
-  );
-
-  if (!toma || !registro) return <div className="p-20 text-center bg-white/70 rounded-2xl border border-white/40">Error cargando información clínica.</div>;
+  }, [patient]);
 
   const hasNext = currentIndex < results.length - 1;
   const hasPrev = currentIndex > 0;
 
+  // ── Loading state ──────────────────────────────────────────────────────────
+  if (loading || !patient) {
+    return (
+      <div className="flex flex-col items-center justify-center h-full gap-4 py-24">
+        <div className="w-10 h-10 border-4 border-[var(--accent-clinical)] border-t-transparent rounded-full animate-spin" />
+        <p className="text-[var(--text-secondary)] font-bold text-sm">
+          Recuperando historial clínico del NHC {currentResult.nhc}…
+        </p>
+      </div>
+    );
+  }
+
+  const demo = patient.demographics || {};
+
   return (
-    <div className="flex flex-col h-full w-full gap-5">
-      {/* Navigation Header */}
-      <div className="flex items-center justify-between shrink-0">
-        <div className="flex items-center gap-4">
-          <button 
-            onClick={showFullHistory ? () => setShowFullHistory(false) : onBack}
+    <div className="flex flex-col h-full w-full gap-0">
+
+      {/* ── Barra de Navegación ─────────────────────────────────────────── */}
+      <div className="flex items-center justify-between shrink-0 mb-5">
+        <div className="flex items-center gap-3">
+          <button
+            onClick={onBack}
             className="p-2 hover:bg-[var(--surface-clinical)] rounded-xl transition-colors text-[var(--text-secondary)]"
           >
             <ArrowLeft size={20} />
           </button>
-          <h2 className="text-xl font-black text-[var(--text-primary)] hidden sm:block uppercase tracking-wider">{showFullHistory ? 'Historia Clínica Completa' : 'Expediente Clínico'}</h2>
-
+          <h2 className="text-lg font-black text-[var(--text-primary)] uppercase tracking-wider hidden sm:block">
+            Historia Clínica Electrónica
+          </h2>
         </div>
-
         <div className="flex items-center gap-3 bg-[var(--surface-clinical)] px-4 py-2 rounded-xl border border-[var(--border-clinical)] shadow-md">
-          <div className="text-[13px] font-bold text-[var(--text-secondary)] mr-2 uppercase tracking-wide">
-            {currentIndex + 1} / {results.length} coincidencias
-          </div>
+          <span className="text-[12px] font-bold text-[var(--text-secondary)] uppercase tracking-wide">
+            {currentIndex + 1} / {results.length}
+          </span>
           <div className="flex gap-1 border-l border-[var(--border-clinical)] pl-2">
-            <button 
-              disabled={!hasPrev}
-              onClick={() => onIndexChange(currentIndex - 1)}
-              className="p-1 rounded-lg hover:bg-[var(--bg-clinical)] disabled:opacity-30 disabled:cursor-not-allowed text-[var(--text-primary)]"
-            >
-              <ChevronLeft size={20} />
+            <button disabled={!hasPrev} onClick={() => onIndexChange(currentIndex - 1)}
+              className="p-1 rounded-lg hover:bg-[var(--bg-clinical)] disabled:opacity-30 disabled:cursor-not-allowed text-[var(--text-primary)]">
+              <ChevronLeft size={18} />
             </button>
-            <button 
-              disabled={!hasNext}
-              onClick={() => onIndexChange(currentIndex + 1)}
-              className="p-1 rounded-lg hover:bg-[var(--bg-clinical)] disabled:opacity-30 disabled:cursor-not-allowed text-[var(--text-primary)]"
-            >
-              <ChevronRight size={20} />
+            <button disabled={!hasNext} onClick={() => onIndexChange(currentIndex + 1)}
+              className="p-1 rounded-lg hover:bg-[var(--bg-clinical)] disabled:opacity-30 disabled:cursor-not-allowed text-[var(--text-primary)]">
+              <ChevronRight size={18} />
             </button>
           </div>
         </div>
       </div>
 
-      <div className="flex flex-1 gap-6 overflow-hidden flex-col lg:flex-row">
-        {/* Tomas Sidebar */}
-        <aside className="w-full lg:w-[300px] bg-[var(--surface-clinical)] border border-[var(--border-clinical)] flex flex-col rounded-2xl shadow-xl overflow-hidden shrink-0">
-          <div className="p-4 border-b border-[var(--border-clinical)] text-[12px] font-black text-[var(--text-secondary)] uppercase tracking-widest flex justify-between items-center bg-[var(--bg-clinical)]/50">
-            <span>Tomas Registradas</span>
-            <span className="bg-[var(--accent-clinical)]/10 text-[var(--accent-clinical)] px-2.5 py-0.5 rounded-lg text-[10px] font-bold">{Object.keys(patient.tomas).length}</span>
-          </div>
-          <div className="flex-1 overflow-y-auto">
-            {Object.values(patient.tomas).map(t => (
-              <div
-                key={t.idToma}
-                onClick={() => {
-                  setSelectedTomaId(t.idToma);
-                  setSelectedOrdenToma(t.latest.ordenToma);
-                }}
-                className={`p-4 border-b border-[var(--border-clinical)] cursor-pointer transition-all ${
-                  selectedTomaId === t.idToma 
-                    ? 'bg-[var(--accent-clinical)]/5 border-l-4 border-l-[var(--accent-clinical)]' 
-                    : 'hover:bg-[var(--bg-clinical)] border-l-4 border-l-transparent'
-                }`}
-              >
-                <h4 className="text-[14px] font-black text-[var(--text-primary)] mb-1 uppercase tracking-tight">ID: {t.idToma}</h4>
-                <p className="text-[12px] text-[var(--text-secondary)] font-medium">{t.registros.length} registros evolutivos</p>
-              </div>
-            ))}
-          </div>
-        </aside>
-
-        {/* Main Content Area */}
-        <main className="flex-1 flex flex-col gap-5 overflow-y-auto lg:pr-2 hide-scrollbar">
-          {/* Patient Profile Card */}
-          <div className="bg-[var(--surface-clinical)] border border-[var(--border-clinical)] rounded-2xl p-6 shadow-lg flex items-center gap-6 ring-1 ring-[var(--accent-clinical)]/5">
-            <PatientAvatar gender={getGender(patient.demographics)} size={32} />
-            <div className="flex-1">
-              <div className="flex items-center gap-3 mb-2 flex-wrap">
-                <h1 className="text-[26px] font-black text-[var(--text-primary)] tracking-tight">
-                  {Object.keys(patient.demographics).find(k => k.toUpperCase().includes('NOMBRE')) ? patient.demographics[Object.keys(patient.demographics).find(k => k.toUpperCase().includes('NOMBRE'))!] : `Paciente ${patient.nhc}`}
-                </h1>
-                <div className="flex gap-2">
-                  <span className="bg-emerald-500/10 text-emerald-500 px-3 py-1 rounded-lg text-[9px] font-black tracking-widest uppercase border border-emerald-500/20">HISTORIA ACTIVA</span>
-                  {!showFullHistory && (
-                    <button 
-                      onClick={() => setShowFullHistory(true)}
-                      className="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-1.5 rounded-lg text-[10px] font-black tracking-wider uppercase transition-all shadow-md active:scale-95"
-                      title="Ver historia clínica completa formateada"
-                    >
-                      Historia Completa
-                    </button>
-                  )}
-                </div>
-              </div>
-              <div className="flex gap-2 text-[12px] text-[var(--text-secondary)] flex-wrap items-center">
-                {['EDAD', 'SEXO', 'CIUDAD', 'POSTAL'].map(key => {
-                  const actualKey = Object.keys(patient.demographics || {}).find(k => k.toUpperCase().includes(key));
-                  if (!actualKey) return null;
-                  const displayLabel = key === 'POSTAL' ? 'C.P.' : key;
-                  return (
-                    <span key={key} className="bg-[var(--bg-clinical)] px-3 py-1.5 rounded-lg border border-[var(--border-clinical)] flex items-center gap-2">
-                      <span className="text-[var(--text-primary)] font-black uppercase text-[9px] opacity-60">{displayLabel}</span>
-                      <span className="font-bold text-[var(--text-primary)]">{patient.demographics[actualKey]}</span>
-                    </span>
-                  );
-                })}
-              </div>
+      {/* ── CABECERA FIJA: Datos Demográficos ───────────────────────────── */}
+      <div className="bg-[var(--surface-clinical)] border border-[var(--border-clinical)] rounded-2xl p-6 shadow-lg ring-1 ring-[var(--accent-clinical)]/5 shrink-0 mb-6">
+        <div className="flex items-start gap-5">
+          <PatientAvatar gender={getGender(demo)} size={28} />
+          <div className="flex-1 min-w-0">
+            <div className="flex items-start gap-3 flex-wrap mb-3">
+              <h1 className="text-[24px] font-black text-[var(--text-primary)] tracking-tight leading-none">
+                {demo.NOMBRE || `Paciente ${patient.nhc}`}
+              </h1>
+              <span className="text-[9px] font-black uppercase tracking-widest bg-emerald-500/10 text-emerald-600 border border-emerald-500/20 px-2.5 py-1 rounded-full mt-1">
+                Historia Activa
+              </span>
             </div>
-          </div>
-
-
-          {/* Timeline Selector */}
-          <div className="bg-[var(--bg-clinical)] border border-[var(--border-clinical)] rounded-xl p-4 flex items-center gap-4 flex-wrap">
-            <div className="text-[13px] font-black text-[var(--text-primary)] uppercase tracking-wider">ID Toma: <span className="font-medium normal-case text-[var(--accent-clinical)]">{selectedTomaId}</span></div>
-            <div className="w-[1px] h-5 bg-[var(--border-clinical)] hidden sm:block"></div>
-            <div className="text-[13px] font-black text-[var(--text-primary)] uppercase tracking-wider">Registros Evolutivos:</div>
-            <div className="flex gap-2 flex-wrap">
-              {toma.registros.map(r => {
-                const dateKey = Object.keys(r.data).find(k => k.toUpperCase().includes('FECHA_TOMA') || k.toUpperCase().includes('FECHA_OBSERVACION'));
-                const dateVal = dateKey ? r.data[dateKey] : '';
-                return (
-                  <button
-                    key={r.ordenToma}
-                    onClick={() => setSelectedOrdenToma(r.ordenToma)}
-                    className={`px-4 py-1.5 rounded-lg border text-[11px] transition-all font-bold flex flex-col items-center ${
-                      r.ordenToma === selectedOrdenToma
-                        ? 'bg-[var(--accent-clinical)] text-white border-[var(--accent-clinical)] shadow-lg scale-105'
-                        : 'bg-[var(--surface-clinical)] border-[var(--border-clinical)] text-[var(--text-secondary)] hover:border-[var(--accent-clinical)]'
-                    }`}
-                  >
-                    <span className="opacity-80 text-[9px] uppercase tracking-tighter">Reg #{r.ordenToma}</span>
-                    <span>{dateVal || 'Sin Fecha'}</span>
-                  </button>
-                );
+            <div className="flex flex-wrap gap-2">
+              <DemoChip label="NHC" value={patient.nhc} />
+              {['EDAD', 'SEXO', 'CIUDAD', 'POSTAL'].map(k => {
+                const actualKey = Object.keys(demo).find(dk => dk.toUpperCase().includes(k));
+                if (!actualKey || !demo[actualKey]) return null;
+                return <DemoChip key={k} label={k === 'POSTAL' ? 'C.P.' : k} value={demo[actualKey]} />;
               })}
             </div>
-
           </div>
+          <div className="flex items-center gap-2 text-[12px] text-[var(--text-secondary)] shrink-0">
+            <Activity size={14} className="text-[var(--accent-clinical)]" />
+            <span className="font-bold">{sortedTomas.length} toma{sortedTomas.length !== 1 ? 's' : ''}</span>
+          </div>
+        </div>
+      </div>
 
-          {/* Content Area Rendering */}
-          {showFullHistory ? (
-            <div className="flex-1 space-y-8 pb-20 animate-in fade-in slide-in-from-bottom-4">
-              {Object.values(patient.tomas).map(t => (
-                <div key={t.idToma} className="space-y-6">
-                  <div className="flex items-center gap-4">
-                    <div className="h-[2px] flex-1 bg-[var(--border-clinical)]"></div>
-                    <span className="text-[10px] font-black uppercase tracking-[4px] text-[var(--text-secondary)]">Toma: {t.idToma}</span>
-                    <div className="h-[2px] flex-1 bg-[var(--border-clinical)]"></div>
-                  </div>
-                  {[...t.registros].sort((a,b) => b.ordenToma - a.ordenToma).map(r => (
-                    <div key={r.ordenToma} className="bg-[var(--surface-clinical)] border border-[var(--border-clinical)] rounded-3xl p-8 shadow-sm">
-                      <div className="flex items-center justify-between mb-8 pb-4 border-b border-[var(--border-clinical)]">
-                        <div className="flex items-center gap-4">
-                          <div className="w-10 h-10 rounded-full bg-[var(--accent-clinical)]/10 text-[var(--accent-clinical)] flex items-center justify-center font-black">
-                            {r.ordenToma}
-                          </div>
-                          <div>
-                            <div className="text-[10px] font-black uppercase text-[var(--text-secondary)] tracking-widest">Registro Evolutivo</div>
-                            <div className="text-[14px] font-bold text-[var(--text-primary)]">
-                              {Object.entries(r.data).find(([k]) => k.toUpperCase().includes('FECHA_TOMA'))?.[1] || 'Fecha no disponible'}
-                            </div>
-                          </div>
-                        </div>
-                        <div className="text-[11px] font-black uppercase text-[var(--text-secondary)] tracking-wider">
-                          {Object.entries(r.data).find(([k]) => k.toUpperCase().includes('USUARIO'))?.[1] || 'Personal Sanitario'}
-                        </div>
-                      </div>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-6">
-                        {Object.entries(r.data)
-                          .filter(([k, v]) => v && v.trim() !== '' && classifyField(k) !== 'Demografía' && !['ID_TOMA', 'ORDEN_TOMA', 'NHC_ID'].includes(k.toUpperCase().replace(/\W/g, '')))
-                          .map(([k, v]) => (
-                            <div key={k} className="group">
-                              <div className="text-[9px] font-black uppercase text-[var(--accent-clinical)]/60 tracking-widest mb-1">{k}</div>
-                              <div className="text-[14px] text-[var(--text-primary)] leading-relaxed">
-                                <HighlightedText text={v} query={query} />
-                              </div>
-                            </div>
-                          ))}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ))}
+      {/* ── VISTA ÚNICA CONTINUA ─────────────────────────────────────────── */}
+      <div className="flex-1 overflow-y-auto hide-scrollbar">
+        <div className="max-w-3xl mx-auto pb-24 space-y-0">
+          {sortedTomas.length === 0 ? (
+            <div className="text-center py-20 text-[var(--text-secondary)]">
+              <p className="font-bold">No se encontraron registros clínicos para este paciente.</p>
             </div>
           ) : (
-            <>
-              {/* Tabs Selector */}
-              <div className="flex gap-3 border-b border-[var(--border-clinical)] overflow-x-auto hide-scrollbar shrink-0 pt-2">
-                {TABS.map(tab => {
-                  const count = categorizedFields[tab].length;
-                  if (count === 0 && tab !== activeTab) return null;
-                  return (
-                    <button
-                      key={tab}
-                      onClick={() => setActiveTab(tab)}
-                      className={`px-5 py-3 text-[14px] font-bold cursor-pointer whitespace-nowrap border-b-2 transition-all flex items-center gap-2 uppercase tracking-tight ${
-                        activeTab === tab 
-                          ? 'text-[var(--accent-clinical)] border-[var(--accent-clinical)]' 
-                          : 'text-[var(--text-secondary)] border-transparent hover:text-[var(--text-primary)]'
-                      }`}
-                    >
-                      {tab} 
-                      <span className={`text-[10px] px-2 py-0.5 rounded-lg font-black ${activeTab === tab ? 'bg-[var(--accent-clinical)] text-white' : 'bg-[var(--border-clinical)] text-[var(--text-secondary)]'}`}>{count}</span>
-                    </button>
-                  );
-                })}
-              </div>
-
-              {/* Content Grid */}
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 pb-6">
-                {categorizedFields[activeTab].length === 0 ? (
-                  <div className="col-span-full text-center py-20 text-[var(--text-secondary)] bg-[var(--surface-clinical)] rounded-2xl border border-dashed border-[var(--border-clinical)]">
-                    <p className="text-[14px] font-bold uppercase tracking-wider opacity-50">Datos no disponibles en esta categoría</p>
-                  </div>
-                ) : (
-                  categorizedFields[activeTab].map((field, idx) => (
-                    <div key={`${field.key}_${idx}`} className="bg-[var(--surface-clinical)] border border-[var(--border-clinical)] rounded-2xl p-6 flex flex-col gap-4 shadow-lg hover:border-[var(--accent-clinical)] transition-all">
-                      <div className="text-[10px] font-black uppercase text-[var(--text-secondary)] tracking-widest border-b border-[var(--border-clinical)] pb-3">
-                        {field.key}
-                      </div>
-                      <div className="text-[15px] text-[var(--text-primary)] font-medium whitespace-pre-wrap leading-[1.6]">
-                        <HighlightedText text={field.value} query={query} />
-                      </div>
-                    </div>
-                  ))
-                )}
-              </div>
-            </>
+            sortedTomas.map((toma, tomaIdx) =>
+              // Dentro de cada toma, mostrar registros ordenados descendente
+              [...toma.registros]
+                .sort((a, b) => b.ordenToma - a.ordenToma)
+                .map((registro, regIdx) => (
+                  <RegistroBlock
+                    key={`${toma.idToma}_${registro.ordenToma}`}
+                    registro={registro}
+                    query={query}
+                    isFirst={tomaIdx === 0 && regIdx === 0}
+                  />
+                ))
+            )
           )}
-        </main>
+        </div>
       </div>
     </div>
   );
 }
-

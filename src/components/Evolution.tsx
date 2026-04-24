@@ -36,11 +36,25 @@ export default function Evolution({ onBack }: EvolutionProps) {
       color: 'orange'
     },
     {
-      date: 'Hoy',
+      date: '21-22 de Abril, 2026',
       title: 'Ecosistema de Calidad Clínica',
       description: 'Se consolida el sistema con una suite de pruebas industriales (Vitest/Playwright). Se inaugura el Centro de Ayuda técnico y se oficializa la coordinación con el Hospital Rafael Méndez.',
       icon: <FileCheck className="text-green-500" />,
       color: 'green'
+    },
+    {
+      date: '23 de Abril, 2026',
+      title: 'Motor V2.7: Optimización Extrema',
+      description: 'Refactorización total del motor para un rendimiento ultra-eficiente. Implementación de búsqueda por lotes (Batching) e ingesta de un solo paso (Single-Pass).',
+      icon: <Zap className="text-purple-500" />,
+      color: 'purple'
+    },
+    {
+      date: '23 de Abril, 2026 (Actual)',
+      title: 'V3.0.0: Arquitectura Solid-State',
+      description: 'Salto generacional: Ingesta por Streaming (sin límite de RAM) e Índice Fragmentado por Bucketing. Solución definitiva para estabilidad y escalabilidad masiva.',
+      icon: <Shield className="text-indigo-500" />,
+      color: 'indigo'
     }
   ];
 
@@ -106,7 +120,7 @@ export default function Evolution({ onBack }: EvolutionProps) {
       </div>
 
       <div className="text-center mt-12 text-[var(--text-secondary)] text-[10px] font-medium tracking-widest uppercase opacity-50">
-        Hoja de Ruta 2026 - Queryclin V2.4
+        Hoja de Ruta 2026 - Queryclin V2.7
       </div>
     </div>
   );

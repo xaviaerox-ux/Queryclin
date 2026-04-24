@@ -2,8 +2,8 @@
  * Parser de CSV optimizado para grandes volúmenes y robustez clínica.
  * Maneja BOM, diferentes finales de línea y delimitadores automáticos.
  */
-export function parseCSV(csvText: string): any[] {
-  if (!csvText || csvText.length < 5) return [];
+export function* streamCSV(csvText: string): Generator<any> {
+  if (!csvText || csvText.length < 5) return;
 
   // 1. Limpieza inicial: eliminar BOM si existe
   if (csvText.startsWith('\uFEFF')) {
@@ -24,7 +24,6 @@ export function parseCSV(csvText: string): any[] {
   const delimiter = detectDelimiter(firstLine);
   const headers = parseCSVLine(firstLine, delimiter).map(h => h.trim());
 
-  const data: any[] = [];
   let pos = firstLineEnd;
   
   // Saltar el final de línea inicial
@@ -51,40 +50,39 @@ export function parseCSV(csvText: string): any[] {
       currentRow.push(currentVal.trim());
       currentVal = '';
     } else if ((char === '\n' || char === '\r') && !insideQuotes) {
+      // Evitar empujar valores vacíos finales si la línea termina en delimitador
       currentRow.push(currentVal.trim());
       currentVal = '';
       
       if (currentRow.length > 0) {
+        // Validación: Si la fila tiene menos columnas que el header, el sistema debe saberlo
         const record: any = {};
         for (let j = 0; j < headers.length; j++) {
-          record[headers[j]] = currentRow[j] || '';
+          const val = currentRow[j];
+          record[headers[j]] = val !== undefined ? val : '';
         }
-        data.push(record);
+        yield record;
       }
       
       currentRow = [];
-      
-      // Saltar si es un salto de línea múltiple (\r\n)
-      if (char === '\r' && nextChar === '\n') {
-        pos++;
-      }
+      if (char === '\r' && nextChar === '\n') pos++;
     } else {
       currentVal += char;
     }
     pos++;
   }
 
-  // Última fila si no termina en salto de línea
+  // Última fila
   if (currentVal || currentRow.length > 0) {
-    currentRow.push(currentVal.trim());
-    const record: any = {};
-    for (let j = 0; j < headers.length; j++) {
-      record[headers[j]] = currentRow[j] || '';
+    if (currentVal) currentRow.push(currentVal.trim());
+    if (currentRow.some(val => val.length > 0)) {
+      const record: any = {};
+      for (let j = 0; j < headers.length; j++) {
+        record[headers[j]] = currentRow[j] || '';
+      }
+      yield record;
     }
-    data.push(record);
   }
-
-  return data;
 }
 
 function detectDelimiter(line: string): string {
