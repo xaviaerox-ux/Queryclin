@@ -87,17 +87,17 @@ function ResultRow({ res, onSelect }: { key?: any; res: SearchResult, onSelect: 
       </div>
 
       {/* Estadísticas de Coincidencia */}
-      <div className="hidden md:flex items-center gap-6 px-4">
-        <div className="flex flex-col items-center">
-          <span className="text-[9px] font-black text-[var(--text-secondary)] uppercase mb-1">Tomas</span>
-          <div className="flex items-center gap-1.5 text-[12px] font-bold text-[var(--text-primary)]">
+      <div className="hidden md:flex items-center gap-8 px-4">
+        <div className="flex flex-col items-center w-14">
+          <span className="text-[9px] font-black text-[var(--text-secondary)] uppercase mb-1.5 opacity-60">Informes</span>
+          <div className="flex items-center gap-1.5 text-[13px] font-bold text-[var(--text-primary)] h-6">
             <Activity size={12} className="text-[var(--accent-clinical)]" />
             {res.matchingTomasCount}
           </div>
         </div>
-        <div className="flex flex-col items-center">
-          <span className="text-[9px] font-black text-[var(--text-secondary)] uppercase mb-1">Hallazgos</span>
-          <div className="bg-[var(--accent-clinical)] text-white px-2 py-0.5 rounded text-[11px] font-black">
+        <div className="flex flex-col items-center w-16">
+          <span className="text-[9px] font-black text-[var(--text-secondary)] uppercase mb-1.5 opacity-60">Hallazgos</span>
+          <div className="bg-[var(--accent-clinical)] text-white min-w-[24px] h-6 flex items-center justify-center rounded-md text-[11px] font-black px-2 shadow-sm shadow-[var(--accent-clinical)]/20">
             {res.matchedRegistros.length}
           </div>
         </div>
@@ -105,11 +105,13 @@ function ResultRow({ res, onSelect }: { key?: any; res: SearchResult, onSelect: 
 
       {/* Score y Acción */}
       <div className="flex items-center gap-4 pl-4 border-l border-[var(--border-clinical)]">
-        <div className="flex flex-col items-end">
-          <span className="text-[9px] font-black text-[var(--text-secondary)] uppercase mb-1">Relevancia</span>
-          <span className="text-[14px] font-black text-[var(--accent-clinical)]">{res.totalScore.toFixed(1)}</span>
+        <div className="flex flex-col items-end w-16">
+          <span className="text-[9px] font-black text-[var(--text-secondary)] uppercase mb-1.5 opacity-60">Relevancia</span>
+          <div className="h-6 flex items-center">
+            <span className="text-[15px] font-black text-[var(--accent-clinical)] leading-none">{res.totalScore.toFixed(1)}</span>
+          </div>
         </div>
-        <div className="text-[var(--text-secondary)] opacity-0 group-hover:opacity-100 transition-opacity">
+        <div className="text-[var(--text-secondary)] opacity-0 group-hover:opacity-100 transition-all duration-300 transform translate-x-1 group-hover:translate-x-0">
           <ChevronRight size={18} />
         </div>
       </div>

@@ -89,12 +89,13 @@ Tras las últimas refactorizaciones para asegurar la escalabilidad masiva y esta
 - **Clinical Synonym Mapper**: Diccionario integrado de 23 patologías de alta prevalencia para expansión automática de consultas (ej. `HTA` → `Hipertensión`).
 - **Expansión de Bigramas**: Detección de frases clínicas compuestas en la búsqueda del usuario.
 
-### Fase 12: Modernización y Soporte Excel (V4.2.1 - ACTUAL ✅)
-- **Soporte Nativo XLSX**: Integración con motores de procesamiento de hojas de cálculo para ingesta directa de Excel.
-- **Modelos Deterministas**: Implementación de esquemas clínicos rígidos (HCE-ALG, MIR, OBS) para garantizar el mapeo de campos críticos como `N.H.C`.
-- **Rediseño UX Step-by-Step**: Transformación del proceso de carga en un asistente de 3 pasos intuitivo.
-- **Buscador Ubicuo**: Integración del motor de búsqueda en la cabecera principal para maximizar el espacio de análisis clínico.
-- **Inmunidad a Conflictos**: Uso de diccionarios `Object.create(null)` para prevenir colisiones con palabras reservadas en datos reales.
+### Fase 12: Estructura Determinista y Legibilidad (V4.2.1 - ACTUAL ✅)
+- **Orden Clínico Estricto**: Visualización determinista de campos siguiendo el mapping oficial, garantizando memoria visual.
+- **Subgrupo de Constantes**: Implementación de tablas inmutables para parámetros biométricos (IMC, constantes vitales).
+- **Formateo Inteligente**: Conversión automática de espacios múltiples en párrafos legibles para informes densos.
+- **Navegación Ergonómica**: Soporte completo para navegación por teclado (flechas) entre expedientes.
+- **Buscador Ubicuo**: Motor de búsqueda integrado en cabecera para acceso global instantáneo.
+- **Soporte XLSX**: Ingesta nativa de hojas de cálculo con detección automática de modelos.
 
 
 ---

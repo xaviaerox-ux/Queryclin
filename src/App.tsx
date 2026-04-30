@@ -244,16 +244,27 @@ export default function App() {
     <ErrorBoundary>
       <div className="h-screen flex flex-col bg-[var(--bg-clinical)] text-[var(--text-primary)] font-sans overflow-hidden">
         <header className="h-[64px] bg-[var(--glass-bg)] backdrop-blur-md border-b border-[var(--border-clinical)] px-6 flex items-center justify-between z-[100] shrink-0">
-          <div className="flex items-center gap-2 shrink-0">
+          <div className="flex items-center gap-4 shrink-0 h-full">
             <div 
-              className="text-[20px] font-black tracking-tight cursor-pointer text-[var(--accent-clinical)]"
+              className="flex items-center gap-3 cursor-pointer group h-full py-2"
               onClick={() => { setView('home'); setQuery(''); }}
             >
-              Query<span className="font-light text-[var(--text-primary)]">clin</span>
+              <div className="text-[20px] font-black tracking-tighter text-[var(--accent-clinical)] flex items-baseline">
+                Query<span className="font-light text-[var(--text-primary)]">clin</span>
+              </div>
+              <div className="h-6 w-px bg-[var(--border-clinical)] opacity-30 mx-1 self-center" />
+              <div className="flex items-center text-[19px] font-medium tracking-[-0.03em] select-none antialiased">
+                <span className="text-[#4285F4]">N</span>
+                <span className="text-[#EA4335]">a</span>
+                <span className="text-[#FBBC05]">c</span>
+                <span className="text-[#4285F4]">h</span>
+                <span className="text-[#34A853]">u</span>
+                <span className="text-[#EA4335]">S</span>
+              </div>
             </div>
             <button 
               onClick={() => setView('evolution')}
-              className="px-2 py-0.5 text-[9px] font-black bg-[var(--accent-clinical)]/10 text-[var(--accent-clinical)] border border-[var(--accent-clinical)]/20 rounded-full hover:bg-[var(--accent-clinical)] hover:text-white transition-all active:scale-95 flex items-center gap-1" 
+              className="px-2 py-0.5 text-[9px] font-black bg-[var(--accent-clinical)]/10 text-[var(--accent-clinical)] border border-[var(--accent-clinical)]/20 rounded-full hover:bg-[var(--accent-clinical)] hover:text-white transition-all active:scale-95 flex items-center gap-1 self-center" 
               title={`Click para ver la evolución del proyecto`}
             >
               <span>V{VERSION}</span>

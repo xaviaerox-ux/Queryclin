@@ -42,6 +42,12 @@ function DemoChip({ label, value }: { key?: any; label: string; value: string })
 // ─── Campo Clínico Individual ──────────────────────────────────────────────────
 function ClinicalField({ label, value, query, highlight }: { key?: any; label: string; value: string; query: string; highlight?: boolean }) {
   const isLong = value.length > 80;
+  
+  // Mejora de legibilidad: 4 o más espacios -> Salto de línea doble (párrafo)
+  const formattedValue = useMemo(() => {
+    return value.replace(/ {4,}/g, '\n\n').trim();
+  }, [value]);
+
   const isBoolean = ['SI','NO','SÍ','TRUE','FALSE','POSITIVO','NEGATIVO'].includes(value.trim().toUpperCase());
 
   return (
@@ -59,13 +65,66 @@ function ClinicalField({ label, value, query, highlight }: { key?: any; label: s
         </span>
       ) : isLong ? (
         <p className="text-[15px] text-slate-900 dark:text-slate-100 leading-[1.75] whitespace-pre-wrap font-bold">
-          <HighlightedText text={value} query={query} />
+          <HighlightedText text={formattedValue} query={query} />
         </p>
       ) : (
-        <span className="text-[16px] text-slate-900 dark:text-slate-100 font-black leading-snug">
-          <HighlightedText text={value} query={query} />
+        <span className="text-[16px] text-slate-900 dark:text-slate-100 font-black leading-snug whitespace-pre-wrap">
+          <HighlightedText text={formattedValue} query={query} />
         </span>
       )}
+    </div>
+  );
+}
+
+// ─── Bloque de Constantes Clínicas (Inmutable) ────────────────────────────────
+function ClinicalConstants({ data, query }: { data: Record<string, string>, query: string }) {
+  const getV = (keys: string[]) => {
+    for (const k of keys) {
+      const val = data[k];
+      if (val !== undefined && val !== null && String(val).trim() !== '') return String(val);
+    }
+    return '--';
+  };
+
+  const Field = ({ label, keys, minW = "120px", valW = "80px" }: { label: string, keys: string[], minW?: string, valW?: string }) => (
+    <div className="flex border-b border-r border-slate-300 last:border-b-0">
+      <div className={`bg-white px-2 py-1 text-[11px] font-bold border-r border-slate-300 flex items-center`} style={{ minWidth: minW }}>
+        {label}
+      </div>
+      <div className={`bg-[#F1F8E9] px-2 py-1 text-[11px] font-black text-slate-800 flex items-center justify-center text-center`} style={{ minWidth: valW }}>
+        <HighlightedText text={getV(keys)} query={query} />
+      </div>
+    </div>
+  );
+
+  return (
+    <div className="my-6 select-none">
+      <div className="bg-[#0056b3] text-white px-4 py-1 text-[11px] font-black uppercase tracking-wider border border-slate-800 inline-block mb-[1px] shadow-sm">
+        Constantes:
+      </div>
+      <div className="flex flex-wrap items-start gap-4">
+        {/* Bloque 1 */}
+        <div className="border border-slate-400 shadow-sm overflow-hidden">
+          <Field label="IMC:" keys={['IMC:', 'IMC']} />
+          <Field label="Valoracion IMC:" keys={['Valoración IMC', 'Valoración IMC:']} />
+        </div>
+        {/* Bloque 2 */}
+        <div className="border border-slate-400 shadow-sm overflow-hidden">
+          <Field label="Peso:" keys={['Peso:', 'Peso']} />
+          <Field label="Superficie Corp:" keys={['Superficie Corporal', 'Superficie Corp:']} />
+        </div>
+        {/* Bloque 3 - Compuesto */}
+        <div className="border border-slate-400 shadow-sm overflow-hidden flex flex-col">
+          <div className="flex border-b border-slate-300 last:border-b-0">
+             <Field label="Grupo Sanguineo:" keys={['Grupo sanguineo y RH', 'Grupo Sanguineo:']} minW="130px" valW="100px" />
+             <Field label="Talla:" keys={['Talla:', 'Talla']} minW="60px" valW="60px" />
+          </div>
+          <div className="flex border-b border-slate-300 last:border-b-0">
+             <Field label="Transfusiones:" keys={['Transfusiones', 'Transfusiones:']} minW="130px" valW="100px" />
+             <Field label="Tmp" keys={['T', 'Temperatura', 'Tmp']} minW="60px" valW="60px" />
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
@@ -96,13 +155,11 @@ function HeaderField({ label, value, highlight = false }: { label: string; value
 function extractFecha(data: Record<string, string>): string {
   const raw = data['EC_Fecha_Toma'] || data['FECHA_TOMA'] || '';
   if (!raw) return '--';
-  // Tomar solo la parte de fecha (antes del espacio si hay hora incluida)
   return raw.includes(' ') ? raw.split(' ')[0] : raw;
 }
 
 function extractHora(data: Record<string, string>): string {
   const raw = data['EC_Fecha_Toma'] || '';
-  // Si la fecha incluye la hora tras un espacio, extraerla
   if (raw.includes(' ')) return raw.split(' ')[1]?.slice(0, 5) || '--:--';
   return data['HORA_TOMA'] || data['EC_Hora_Toma'] || '--:--';
 }
@@ -167,12 +224,10 @@ function TomaTimeline({
             );
           }
 
-          // Renderizado clásico para otros formularios
           const isActive = tIdx === activeIndex;
           const isLatest = tIdx === 0;
           const fecha = extractFecha(t.latest?.data || {});
           const hora = extractHora(t.latest?.data || {});
-          const orden = t.latest?.ordenToma ?? (t.registros?.[0]?.ordenToma ?? tIdx + 1);
           const usuario = t.latest?.data['Usuario'] || t.latest?.data['USUARIO_TOMA'] || '';
 
           return (
@@ -192,20 +247,14 @@ function TomaTimeline({
                   </span>
                 )}
               </div>
-
-              {/* Fecha */}
               <div className="flex items-center gap-1.5 text-[11px] font-bold text-[var(--text-primary)]">
                 <Calendar size={10} className={isActive ? 'text-[var(--accent-clinical)]' : 'text-[var(--text-secondary)] opacity-60'} />
                 <span>{fecha}</span>
               </div>
-
-              {/* Hora */}
               <div className="flex items-center gap-1.5 text-[10px] font-bold text-[var(--text-secondary)] opacity-70">
                 <Clock size={9} />
                 <span>{hora}</span>
               </div>
-
-              {/* Usuario si existe */}
               {usuario && (
                 <span className="text-[9px] text-[var(--text-secondary)] opacity-50 truncate max-w-[140px]">{usuario}</span>
               )}
@@ -222,9 +271,7 @@ export default function HCEView({ results, currentIndex, query, onBack, onNaviga
   const currentResult = results[currentIndex];
   const [patient, setPatient] = useState<Patient | null>(null);
   const [loading, setLoading] = useState(true);
-  // Índice de la toma activa (0 = más reciente)
   const [activeTomaIndex, setActiveTomaIndex] = useState(0);
-  // Índice de la versión activa dentro de la toma
   const [activeVersionIndex, setActiveVersionIndex] = useState(0);
   
   const formMapping = useMemo(() => FORMS.find(f => f.id === formId) || FORMS[0], [formId]);
@@ -232,7 +279,7 @@ export default function HCEView({ results, currentIndex, query, onBack, onNaviga
   useEffect(() => {
     if (!currentResult) return;
     let active = true;
-    setActiveTomaIndex(0); // Reset al cambiar de paciente
+    setActiveTomaIndex(0);
     setActiveVersionIndex(0);
     const fetchPatient = async () => {
       setLoading(true);
@@ -254,6 +301,22 @@ export default function HCEView({ results, currentIndex, query, onBack, onNaviga
     return () => { active = false; };
   }, [currentResult?.nhc]);
 
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Evitar navegación si el usuario está escribiendo en algún input (ej. el buscador de la cabecera)
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+
+      if (e.key === 'ArrowLeft' && currentIndex > 0) {
+        onNavigate(currentIndex - 1);
+      } else if (e.key === 'ArrowRight' && currentIndex < results.length - 1) {
+        onNavigate(currentIndex + 1);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [currentIndex, results.length, onNavigate]);
+
   const sortedTomas = useMemo(() => {
     if (!patient || !patient.tomas) return [];
     return Object.values(patient.tomas).sort((a, b) => {
@@ -273,7 +336,6 @@ export default function HCEView({ results, currentIndex, query, onBack, onNaviga
   }, [patient]);
 
   const activeToma = sortedTomas[activeTomaIndex];
-  // Sort versions desc by ordenToma to default to latest
   const sortedVersions = useMemo(() => {
     if (!activeToma) return [];
     return [...activeToma.registros].sort((a, b) => b.ordenToma - a.ordenToma);
@@ -311,28 +373,38 @@ export default function HCEView({ results, currentIndex, query, onBack, onNaviga
   const demo = patient.demographics || {};
   const queryTokens = query.toLowerCase().split(/\s+/).filter(t => t.length > 2);
   
-  // Taxonomía estricta basada en el formulario y versión activa
-  const sections: Record<string, { key: string, value: string }[]> = {};
+  // Taxonomía estricta basada en el orden del formulario definido en mappings.ts
+  const renderedSections: { title: string, fields: { key: string, value: string }[] }[] = [];
+  
   if (activeVersion) {
-    // Inicializar secciones según mapping
-    Object.keys(formMapping.visualCategories).forEach(cat => {
-      sections[cat] = [];
-    });
-    // Rellenar desde la versión activa (PROHIBIDO MEZCLAR REGISTROS DE OTRA VERSIÓN)
-    Object.entries(activeVersion.data).forEach(([key, value]) => {
-      if (value === undefined || value === null || value === '') return;
-      if (key === '_is_duplicate') return; // Ignore internal flag
-      // Buscar en el mapping a qué categoría pertenece esta clave exacta
-      let foundCategory = 'UNMAPPED_DEBUG';
-      for (const [catName, cols] of Object.entries(formMapping.visualCategories)) {
-        if (cols.includes(key)) {
-          foundCategory = catName;
-          break;
+    Object.entries(formMapping.visualCategories).forEach(([catName, allowedKeys]) => {
+      if (formId === 'hce_alg' && (catName === 'CABECERA' || catName === 'CONTROL')) return;
+
+      const categoryFields: { key: string, value: string }[] = [];
+      allowedKeys.forEach(key => {
+        const value = activeVersion.data[key];
+        if (value !== undefined && value !== null && String(value).trim() !== '') {
+          categoryFields.push({ key, value: String(value) });
         }
+      });
+      
+      if (categoryFields.length > 0) {
+        renderedSections.push({ title: catName, fields: categoryFields });
       }
-      if (!sections[foundCategory]) sections[foundCategory] = [];
-      sections[foundCategory].push({ key, value: String(value) });
     });
+
+    const mappedKeys = new Set(Object.values(formMapping.visualCategories).flat());
+    const unmappedFields: { key: string, value: string }[] = [];
+    Object.entries(activeVersion.data).forEach(([key, value]) => {
+       if (key === '_is_duplicate' || key === 'NHC' || key === 'N.H.C' || key === 'Id_Toma' || key === 'Orden_Toma' || key === 'EC_Fecha_Toma') return;
+       if (!mappedKeys.has(key) && value !== undefined && value !== null && String(value).trim() !== '') {
+         unmappedFields.push({ key, value: String(value) });
+       }
+    });
+    
+    if (unmappedFields.length > 0) {
+      renderedSections.push({ title: 'Campos no mapeados (debug)', fields: unmappedFields });
+    }
   }
 
   const fechaActiva = activeVersion ? extractFecha(activeVersion.data) : '--';
@@ -341,8 +413,6 @@ export default function HCEView({ results, currentIndex, query, onBack, onNaviga
 
   return (
     <div className="flex flex-col w-full pb-40">
-
-      {/* ── Navegación Superior ───────────────────────────────────────── */}
       <div className="flex items-center justify-between mb-8 shrink-0">
         <button onClick={onBack} className="flex items-center gap-2 text-[var(--text-secondary)] hover:text-[var(--text-primary)] font-bold transition-colors">
           <ArrowLeft size={20} />
@@ -363,10 +433,7 @@ export default function HCEView({ results, currentIndex, query, onBack, onNaviga
         </div>
       </div>
 
-      {/* ── Cuerpo Principal ─────────────────────────────────────────── */}
       <div className="flex gap-8 items-start justify-center">
-
-        {/* Timeline Lateral Izquierdo */}
         <aside className="w-52 shrink-0 hidden lg:block">
           <TomaTimeline
             sortedTomas={sortedTomas}
@@ -381,13 +448,9 @@ export default function HCEView({ results, currentIndex, query, onBack, onNaviga
           />
         </aside>
 
-        {/* Contenido de la Toma Activa */}
         <div className="flex-1 min-w-0 max-w-4xl">
-
-          {/* ── Cabecera Demográfica (Movida aquí para igualar anchos) ──── */}
           {formId === 'hce_alg' ? (
             <div className="bg-[var(--surface-clinical)] border border-[var(--border-clinical)] rounded-xl mb-6 shadow-sm overflow-hidden flex flex-col">
-              {/* Fila 1: Datos Identidad (Colores crema/suave según diseño) */}
               <div className="flex flex-wrap items-center gap-4 px-6 py-2.5 border-b border-[var(--border-clinical)] bg-[#FFF9E5]">
                 <div className="flex items-center gap-2 min-w-[140px]">
                   <span className="text-[16px] font-black text-slate-800 uppercase">NHC:</span>
@@ -398,7 +461,6 @@ export default function HCEView({ results, currentIndex, query, onBack, onNaviga
                 <HeaderField label="F_Nacimiento" value={demo['fechaNacimiento']} />
                 <HeaderField label="C.P" value={demo['cp']} />
               </div>
-              {/* Fila 2: Datos Contexto (Dinámicos por toma) */}
               <div className="flex flex-wrap items-center gap-4 px-6 py-2.5 bg-white">
                 <HeaderField label="AMBITO" value={activeVersion?.data['Ámbito'] || activeVersion?.data['AMBITO']} />
                 <HeaderField label="EC_Proceso2" value={activeVersion?.data['EC_Proceso2'] || activeVersion?.data['Proceso 2']} />
@@ -408,8 +470,7 @@ export default function HCEView({ results, currentIndex, query, onBack, onNaviga
               </div>
             </div>
           ) : (
-            <div className="bg-[var(--surface-clinical)] border border-[var(--border-clinical)] rounded-3xl p-8 mb-8 shadow-xl ring-1 ring-[var(--accent-clinical)]/5 relative overflow-hidden">
-              <div className="absolute top-0 right-0 w-64 h-64 bg-emerald-500/5 rounded-full -mr-32 -mt-32 blur-3xl" />
+            <div className="bg-[var(--surface-clinical)] border border-[var(--border-clinical)] rounded-3xl p-8 mb-8 shadow-xl relative overflow-hidden">
               <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 relative z-10">
                 <div className="flex items-center gap-8">
                   <PatientAvatar gender={getGender(demo)} />
@@ -417,11 +478,9 @@ export default function HCEView({ results, currentIndex, query, onBack, onNaviga
                     <h1 className="text-2xl font-black text-[var(--text-primary)] tracking-tight uppercase leading-none mb-2">
                       Paciente {patient.nhc}
                     </h1>
-                    <div className="flex items-center gap-2">
-                      <span className="text-[10px] font-black uppercase tracking-widest bg-emerald-500/10 text-emerald-600 border border-emerald-500/20 px-3 py-1 rounded-full">
-                        Historia Activa · {sortedTomas.length} toma{sortedTomas.length !== 1 ? 's' : ''}
-                      </span>
-                    </div>
+                    <span className="text-[10px] font-black uppercase tracking-widest bg-emerald-500/10 text-emerald-600 border border-emerald-500/20 px-3 py-1 rounded-full self-start">
+                      Historia Activa · {sortedTomas.length} toma{sortedTomas.length !== 1 ? 's' : ''}
+                    </span>
                   </div>
                 </div>
                 <div className="flex flex-wrap gap-3 max-w-xl">
@@ -429,9 +488,7 @@ export default function HCEView({ results, currentIndex, query, onBack, onNaviga
                   {['EDAD', 'SEXO', 'CIUDAD', 'CP'].map(label => {
                     const key = Object.keys(demo).find(k => k.toUpperCase() === label.toUpperCase());
                     const val = key ? demo[key] : null;
-                    if (val) {
-                      return <DemoChip key={label} label={label === 'CP' ? 'C.P.' : label} value={val} />;
-                    }
+                    if (val) return <DemoChip key={label} label={label === 'CP' ? 'C.P.' : label} value={val} />;
                     return null;
                   })}
                 </div>
@@ -439,7 +496,6 @@ export default function HCEView({ results, currentIndex, query, onBack, onNaviga
             </div>
           )}
 
-          {/* ── Cabecera de la Toma Activa ─────────────────────────── */}
           {activeToma ? (
             <>
               <div className={`flex items-center justify-between mb-6 bg-[var(--surface-clinical)] border border-[var(--accent-clinical)]/20 rounded-2xl px-6 py-4 shadow-sm ${formId === 'hce_alg' ? 'hidden' : ''}`}>
@@ -455,31 +511,23 @@ export default function HCEView({ results, currentIndex, query, onBack, onNaviga
                   <div className="flex flex-col items-center">
                     <span className="text-[9px] font-black uppercase tracking-widest text-[var(--text-secondary)] opacity-60 mb-1">Versión / Orden</span>
                     <div className="flex items-center gap-2">
-                        <button disabled={!hasPrevVersion} onClick={() => setActiveVersionIndex(i => i - 1)} className="p-1 hover:bg-[var(--accent-clinical)]/10 rounded disabled:opacity-20 transition-all text-[var(--text-secondary)] hover:text-[var(--accent-clinical)]">
+                        <button disabled={!hasPrevVersion} onClick={() => setActiveVersionIndex(i => i - 1)} className="p-1 hover:bg-[var(--accent-clinical)]/10 rounded disabled:opacity-20 transition-all text-[var(--text-secondary)]">
                             <ChevronLeft size={16} />
                         </button>
                         <span className={`text-[14px] font-black text-[var(--text-primary)] w-8 text-center px-2 rounded border ${activeVersion?.data?._is_duplicate ? 'bg-amber-500/20 border-amber-500 text-amber-500' : 'bg-[var(--bg-clinical)] border-[var(--border-clinical)]'}`}>
                             {ordenActivo}
                         </span>
-                        <button disabled={!hasNextVersion} onClick={() => setActiveVersionIndex(i => i + 1)} className="p-1 hover:bg-[var(--accent-clinical)]/10 rounded disabled:opacity-20 transition-all text-[var(--text-secondary)] hover:text-[var(--accent-clinical)]">
+                        <button disabled={!hasNextVersion} onClick={() => setActiveVersionIndex(i => i + 1)} className="p-1 hover:bg-[var(--accent-clinical)]/10 rounded disabled:opacity-20 transition-all text-[var(--text-secondary)]">
                             <ChevronRight size={16} />
                         </button>
                     </div>
                   </div>
                   <div className="w-px h-8 bg-[var(--border-clinical)]" />
                   <div className="flex flex-col">
-                    <span className="text-[9px] font-black uppercase tracking-widest text-[var(--text-secondary)] opacity-60 mb-1">Fecha</span>
+                    <span className="text-[9px] font-black uppercase tracking-widest text-[var(--text-secondary)] opacity-60 mb-1">Fecha / Hora</span>
                     <span className="text-[14px] font-black text-[var(--text-primary)] flex items-center gap-1.5">
                       <Calendar size={12} className="text-[var(--accent-clinical)]" />
-                      {fechaActiva}
-                    </span>
-                  </div>
-                  <div className="w-px h-8 bg-[var(--border-clinical)]" />
-                  <div className="flex flex-col">
-                    <span className="text-[9px] font-black uppercase tracking-widest text-[var(--text-secondary)] opacity-60 mb-1">Hora</span>
-                    <span className="text-[14px] font-black text-[var(--text-primary)] flex items-center gap-1.5">
-                      <Clock size={12} className="text-[var(--accent-clinical)]" />
-                      {horaActiva}
+                      {fechaActiva} <span className="opacity-40 font-light mx-1">|</span> {horaActiva}
                     </span>
                   </div>
                   {activeVersion?.data?._is_duplicate && (
@@ -487,7 +535,7 @@ export default function HCEView({ results, currentIndex, query, onBack, onNaviga
                       <div className="w-px h-8 bg-[var(--border-clinical)]" />
                       <div className="flex flex-col items-center">
                           <AlertTriangle size={16} className="text-amber-500 mb-1" />
-                          <span className="text-[9px] font-black uppercase tracking-widest text-amber-500">Registro Duplicado</span>
+                          <span className="text-[9px] font-black uppercase tracking-widest text-amber-500">Duplicado</span>
                       </div>
                     </>
                   )}
@@ -495,21 +543,19 @@ export default function HCEView({ results, currentIndex, query, onBack, onNaviga
                     <>
                       <div className="w-px h-8 bg-[var(--border-clinical)]" />
                       <span className="text-[9px] font-black uppercase tracking-widest bg-emerald-600 text-white px-2.5 py-1 rounded-full">
-                        Actual / Reciente
+                        Actual
                       </span>
                     </>
                   )}
                 </div>
 
-                {/* Flechas de navegación de toma */}
                 <div className="flex items-center gap-2">
                   <button
                     disabled={!hasPrevToma}
                     onClick={() => { setActiveTomaIndex(i => i - 1); setActiveVersionIndex(0); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
-                    className="flex items-center gap-1 px-3 py-1.5 text-[11px] font-black text-[var(--text-secondary)] hover:text-[var(--accent-clinical)] hover:bg-[var(--accent-clinical)]/8 rounded-lg disabled:opacity-20 transition-all border border-transparent hover:border-[var(--accent-clinical)]/20"
+                    className="flex items-center gap-1 px-3 py-1.5 text-[11px] font-black text-[var(--text-secondary)] hover:text-[var(--accent-clinical)] rounded-lg disabled:opacity-20 transition-all"
                   >
-                    <ChevronLeft size={14} />
-                    Anterior
+                    <ChevronLeft size={14} /> Anterior
                   </button>
                   <span className="text-[10px] font-bold text-[var(--text-secondary)] opacity-50">
                     {activeTomaIndex + 1} / {sortedTomas.length}
@@ -517,56 +563,54 @@ export default function HCEView({ results, currentIndex, query, onBack, onNaviga
                   <button
                     disabled={!hasNextToma}
                     onClick={() => { setActiveTomaIndex(i => i + 1); setActiveVersionIndex(0); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
-                    className="flex items-center gap-1 px-3 py-1.5 text-[11px] font-black text-[var(--text-secondary)] hover:text-[var(--accent-clinical)] hover:bg-[var(--accent-clinical)]/8 rounded-lg disabled:opacity-20 transition-all border border-transparent hover:border-[var(--accent-clinical)]/20"
+                    className="flex items-center gap-1 px-3 py-1.5 text-[11px] font-black text-[var(--text-secondary)] hover:text-[var(--accent-clinical)] rounded-lg disabled:opacity-20 transition-all"
                   >
-                    Siguiente
-                    <ChevronRight size={14} />
+                    Siguiente <ChevronRight size={14} />
                   </button>
                 </div>
               </div>
 
-              {/* ── Información Crítica (Alergias/Motivo) ─────────── */}
-              {sections['Alergias y Motivo de consulta'] && sections['Alergias y Motivo de consulta'].length > 0 && (
-                <div className="bg-[var(--surface-clinical)] border-2 border-[var(--border-clinical)] rounded-3xl p-8 mb-8 shadow-md">
-                  <SectionHeader label="Alergias y Motivo de consulta" />
-                  <div className="flex flex-col gap-6">
-                    {sections['Alergias y Motivo de consulta'].map(f => (
-                      <ClinicalField key={f.key} label={f.key} value={f.value} query={query} highlight={queryTokens.some(t => f.value.toLowerCase().includes(t))} />
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* ── Resto de Secciones (Deterministas) ────────────────────────────── */}
-              {Object.keys(formMapping.visualCategories)
-                .filter(s => s !== 'Alergias y Motivo de consulta')
-                .filter(s => formId !== 'hce_alg' || (s !== 'CABECERA' && s !== 'CONTROL'))
-                .map(section => {
-                const fields = sections[section];
-                if (!fields || fields.length === 0) return null;
+              {renderedSections.map(section => {
+                const isAnamnesis = section.title === 'ANAMNESIS Y EXPLORACIÓN' || section.title === 'Anamnesis y exploraciones';
+                
                 return (
-                  <div key={section} className="bg-[var(--surface-clinical)] border-2 border-[var(--border-clinical)] rounded-3xl p-8 mb-8 shadow-md">
-                    <SectionHeader label={section} />
+                  <div key={section.title} className={`bg-[var(--surface-clinical)] border-2 border-[var(--border-clinical)] rounded-3xl p-8 mb-8 shadow-md ${section.title === 'Campos no mapeados (debug)' ? 'bg-red-950/10 border-red-500/30' : ''}`}>
+                    <SectionHeader label={section.title} />
                     <div className="flex flex-col gap-6">
-                      {fields.map((f: { key: string; value: string }) => (
-                        <ClinicalField key={f.key} label={f.key} value={f.value} query={query} highlight={queryTokens.some(t => f.value.toLowerCase().includes(t))} />
-                      ))}
+                      {section.fields.map((f) => {
+                        const isAfterExploracion = isAnamnesis && f.key.toUpperCase().includes('EXPLORACIÓN FÍSICA');
+                        const isConstantsField = isAnamnesis && [
+                          'PESO:', 'TALLA:', 'IMC:', 'VALORACIÓN IMC', 'SUPERFICIE CORPORAL', 'T', 'GRUPO SANGUINEO Y RH', 'TRANSFUSIONES',
+                          'PESO', 'TALLA', 'SUPERFICIE CORP:', 'TMP', 'GRUPO SANGUINEO:', 'TRANSFUSIONES:'
+                        ].includes(f.key.toUpperCase());
+
+                        // Si es un campo que va en la tabla de constantes, no lo renderizamos individualmente
+                        if (isConstantsField) return null;
+
+                        return (
+                          <div key={f.key}>
+                            <ClinicalField 
+                              label={f.key} 
+                              value={f.value} 
+                              query={query} 
+                              highlight={queryTokens.some(t => f.value.toLowerCase().includes(t))} 
+                            />
+                            {/* Insertar tabla de constantes justo después de Exploración Física */}
+                            {isAfterExploracion && (
+                              <ClinicalConstants data={activeVersion.data} query={query} />
+                            )}
+                          </div>
+                        );
+                      })}
+
+                      {/* Caso de seguridad: si Anamnesis existe pero no se renderizó la tabla porque no hubo "Exploración Física" */}
+                      {isAnamnesis && !section.fields.some(f => f.key.toUpperCase().includes('EXPLORACIÓN FÍSICA')) && (
+                        <ClinicalConstants data={activeVersion.data} query={query} />
+                      )}
                     </div>
                   </div>
                 );
               })}
-
-              {/* ── Campos No Mapeados (Exploration/Debug Mode) ────────────────── */}
-              {sections['UNMAPPED_DEBUG'] && sections['UNMAPPED_DEBUG'].length > 0 && (
-                <div className="bg-red-950/10 border-2 border-red-500/30 rounded-3xl p-8 mb-8 shadow-md">
-                  <SectionHeader label="Campos no mapeados (debug)" />
-                  <div className="flex flex-col gap-6">
-                    {sections['UNMAPPED_DEBUG'].map((f: { key: string; value: string }) => (
-                      <ClinicalField key={f.key} label={f.key} value={f.value} query={query} highlight={queryTokens.some(t => f.value.toLowerCase().includes(t))} />
-                    ))}
-                  </div>
-                </div>
-              )}
             </>
           ) : (
             <div className="text-center py-20 text-[var(--text-secondary)] font-bold">
@@ -574,8 +618,6 @@ export default function HCEView({ results, currentIndex, query, onBack, onNaviga
             </div>
           )}
         </div>
-
-        {/* Espaciador Derecho */}
         <aside className="w-52 shrink-0 hidden lg:block" />
       </div>
     </div>

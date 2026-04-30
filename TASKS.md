@@ -56,10 +56,37 @@ Este archivo mantiene el registro acumulativo de la evolución del sistema. Las 
 - [x] **Logro**: Arquitectura de grado empresarial lista para escalado horizontal de funcionalidades.
 
 ---
-## 🟡 PRÓXIMOS OBJETIVOS (V4.0)
-- [ ] **E1. Snapshot Médico**: Dashboard visual con gráficos de distribución poblacional.
-- [x] **E2. Generador de Informes**: Exportación de fichas clínicas a Excel nativo (.xlsx) (Fase inicial completada).
+## 🟣 FASE 8: Resiliencia y Soporte Legacy (V4.0.0 ✅)
+- [x] **A11. Decodificación Multi-formato**: Soporte nativo para UTF-8, ISO-8859-1 y CP850 (Legacy DOS).
+- [x] **A12. Motor de Normalización NFD**: Reconocimiento de caracteres especiales y tildes en cabeceras dinámicas.
+- [x] **A13. Exportación Excel Nativa**: Integración de SheetJS para descarga de expedientes en formato .xlsx.
+- [x] **Logro**: Compatibilidad total con exportaciones de sistemas hospitalarios de los años 90 y 2000.
+
+## 🔴 FASE 9: Navegación Crítica y Ergonomía (V4.1.0 ✅)
+- [x] **U1. Rediseño del Visor HCE**: Timeline lateral interactivo y navegación por tomas individuales.
+- [x] **U2. Cabeceras Dinámicas**: Extracción automática de metadatos de proceso (Ámbito, Servicio, Facultativo).
+- [x] **U3. Estética "Clinical Modern"**: Refinamiento de sombras, tipografías y contraste para entornos hospitalarios.
+
+## 🟤 FASE 10: Ingesta Inteligente y Debug (V4.2.0 ✅)
+- [x] **E12. Modos de Carga (Strict/Exploration)**: Control total sobre el mapeo de campos y auditoría de excedentes.
+- [x] **E13. Gestión de Duplicados**: Sistema de registro marcado (`_is_duplicate`) para colisiones de tomas.
+- [x] **E14. Trazabilidad Forense**: Registro del nombre de archivo original y marca de tiempo en cada expediente.
+
+## 🟢 FASE 11: Modernización y Buscador Ubicuo (V4.2.1 ✅)
+- [x] **U4. Buscador en Cabecera**: Integración centralizada para navegación global sin retroceder a Home.
+- [x] **U5. Asistente de Carga (3 Pasos)**: Simplificación de la UX para personal no técnico.
+- [x] **U6. Navegación por Teclado**: Soporte para flechas direccionales en la revisión de expedientes.
+
+## 🟡 FASE 12: Estructura Determinista y Legibilidad (ACTUAL ✅)
+- [x] **A14. Orden Estricto de Mapping**: Forzado de la estructura visual según el modelo oficial ( mappings.ts).
+- [x] **A15. Formateo Inteligente**: Conversión automática de espacios múltiples en saltos de línea legibles.
+- [x] **A16. Subgrupo de Constantes Vitales**: Implementación de tabla inmutable para parámetros biométricos (IMC, Peso, etc).
+- [x] **Logro**: El sistema alcanza un nivel de madurez visual y técnica industrial, listo para producción.
+
+---
+## 🟡 PRÓXIMOS OBJETIVOS (2026+)
 - [ ] **E11. Motor Semántico Híbrido**: Integración de embeddings locales con Transformers.js.
+- [ ] **E15. IA Generativa Local**: Resúmenes automáticos de evolución clínica mediante LLM en el cliente.
 
 ---
 *Queryclin - Sistema de Análisis Clínico Local-First*
