@@ -3,80 +3,79 @@ import { db } from '../storage/indexedDB';
 import { searchEngine } from '../lib/searchEngine';
 import { PatientData } from '../core/types';
 
-// FIX BUG-003: Función centralizada de detección de NHC.
-// Antes se duplicaba esta lógica en el loop principal Y en processBatch,
-// lo que causaba desincronización de identidades si el primer registro de un lote tenía el campo vacío.
-function detectNhcKey(keys: string[]): string {
-  // PRIORIDAD 1: Buscar coincidencias exactas o términos clínicos inequívocos
-  const clinicalMatch = keys.find(k => {
-    const clean = k.toUpperCase().replace(/[^A-Z0-9]/g, '');
-    return clean === 'NHC' || clean === 'NHCID' || clean === 'HISTORIACLINICA' || clean === 'NUMEROHISTORIA' || clean === 'HCE';
-  });
-  if (clinicalMatch) return clinicalMatch;
+import { FormMapping } from '../core/mappings';
 
-  // PRIORIDAD 2: Buscar combinaciones de ID + PACIENTE (evitando CARM o IDs de sistema)
-  const patientMatch = keys.find(k => {
-    const clean = k.toUpperCase().replace(/[^A-Z0-9]/g, '');
-    if (clean.includes('CARM') || clean.includes('SISTEMA') || clean.includes('CONTADOR')) return false;
-    const isId = clean.includes('ID') || clean.includes('COD') || clean.includes('IDENT');
-    const isPatient = clean.includes('PAC') || clean.includes('PAT') || clean.includes('NHC') || clean.includes('HIST');
-    return isId && isPatient;
-  });
-  if (patientMatch) return patientMatch;
-
-  // PRIORIDAD 3: CIP/CIPA
-  const cipMatch = keys.find(k => {
-    const clean = k.toUpperCase().replace(/[^A-Z0-9]/g, '');
-    return clean === 'CIPA' || clean === 'CIP';
-  });
-  if (cipMatch) return cipMatch;
-
-  return keys[0] || '';
-}
+// REMOVED: detectNhcKey, as it violates the strict mapping rules.
 
 self.onmessage = async (e: MessageEvent) => {
-  const { csvText } = e.data;
+  const { csvText, mapping, strictMode, delimiter, source_file, ingest_timestamp } = e.data;
   
+  if (!mapping || !mapping.keys) {
+    self.postMessage({ type: 'error', message: 'ERROR: Falta formulario/mapping externo. Ejecución detenida.' });
+    return;
+  }
+
   try {
-    console.log('[Worker] Iniciando Ingesta Solid-State (V3.1)...');
+    console.log('[Worker] Iniciando Ingesta Determinista (V4.0)...');
     
     const BATCH_SIZE = 2500;
     let recordsBatch: any[] = [];
     let totalProcessed = 0;
     const uniqueNhcs = new Set<string>();
     
-    // FIX BUG-006: Calcular total estimado de líneas antes del streaming
+    // Calcular total estimado de líneas antes del streaming
     // para que la barra de progreso sea determinista (antes era siempre totalProcessed + 5000).
     const estimatedTotal = Math.max((csvText.match(/\n/g) || []).length, 1);
     
     searchEngine.startIndexing();
 
-    // FIX BUG-003: Detectar nhcKey UNA sola vez desde el primer registro y reutilizar.
-    let nhcKey = '';
-    const stream = streamCSV(csvText);
+    const stream = streamCSV(csvText, delimiter);
 
     for (const record of stream) {
-      const keys = Object.keys(record);
-      
       if (totalProcessed === 0) {
-        // Detección única de NHC al procesar el primer registro
-        nhcKey = detectNhcKey(keys);
-        console.log('[Worker] Cabeceras detectadas:', keys);
-        console.log('[Worker] Columna NHC detectada:', nhcKey);
+        // Validar que las claves estructurales existan en la cabecera
+        const keys = Object.keys(record);
+        const structuralKeys = [mapping.keys.nhc, mapping.keys.idToma, mapping.keys.ordenToma];
+        const missingStruct = structuralKeys.filter(k => !keys.includes(k));
+        
+        if (missingStruct.length > 0) {
+            self.postMessage({ type: 'debug_error', logs: [`Faltan claves estructurales requeridas por el formulario: ${missingStruct.join(', ')}`] });
+            return; // Abort
+        }
+        
+        // Validar campos no mapeados (Mapping Completo)
+        const allMappedKeys = [
+          ...structuralKeys,
+          mapping.keys.fechaToma,
+          ...Object.values(mapping.demographics || {}),
+          ...Object.values(mapping.visualCategories).flat()
+        ];
+        
+        const unmappedFields = keys.filter(k => !allMappedKeys.includes(k));
+        if (unmappedFields.length > 0) {
+            if (strictMode) {
+                self.postMessage({ type: 'debug_error', logs: [`Detectados campos en el CSV no definidos en el Mapping: ${unmappedFields.join(', ')}. Modo STRICT bloquea el almacenamiento silencioso.`] });
+                return; // Abort
+            } else {
+                console.warn(`[Worker] Campos no mapeados detectados (se ignorarán visualmente): ${unmappedFields.join(', ')}`);
+            }
+        }
       }
 
-      const nhc = nhcKey ? record[nhcKey] : null;
-      if (nhc) uniqueNhcs.add(String(nhc));
+      const nhc = record[mapping.keys.nhc];
+      if (!nhc) {
+          self.postMessage({ type: 'debug_error', logs: [`Falta estructura clave (NHC nulo/vacío) en la línea ${totalProcessed + 1}.`] });
+          return; // Abort
+      }
+      uniqueNhcs.add(String(nhc));
 
       recordsBatch.push(record);
       totalProcessed++;
 
       if (recordsBatch.length >= BATCH_SIZE) {
-        // FIX BUG-003: Pasar nhcKey como parámetro para evitar re-detección inconsistente
-        await processBatch(recordsBatch, totalProcessed, nhcKey);
+        await processBatch(recordsBatch, totalProcessed, mapping);
         recordsBatch = [];
         
-        // FIX BUG-006: Usar estimatedTotal en lugar de la estimación arbitraria anterior
         self.postMessage({ 
           type: 'progress', 
           progress: totalProcessed, 
@@ -87,7 +86,7 @@ self.onmessage = async (e: MessageEvent) => {
 
     // Procesar el último lote
     if (recordsBatch.length > 0) {
-      await processBatch(recordsBatch, totalProcessed, nhcKey);
+      await processBatch(recordsBatch, totalProcessed, mapping);
       self.postMessage({ 
         type: 'progress', 
         progress: totalProcessed, 
@@ -98,77 +97,102 @@ self.onmessage = async (e: MessageEvent) => {
     console.log(`[Worker] Finalizando indexación de ${totalProcessed} registros (${uniqueNhcs.size} pacientes)...`);
     await searchEngine.finalizeIndexing();
     
-    await db.saveBatch(db.stores.metadata, { 'patient_count': uniqueNhcs.size });
+    await db.saveBatch(db.stores.metadata, { 
+      'patient_count': uniqueNhcs.size, 
+      'form_id': mapping.id,
+      'source_file': source_file,
+      'ingest_timestamp': ingest_timestamp
+    });
 
     self.postMessage({ type: 'complete', total: totalProcessed, patientCount: uniqueNhcs.size });
 
   } catch (error: any) {
     console.error('[Worker] Error crítico:', error);
-    self.postMessage({ type: 'error', message: error.message });
+    if (error.message && error.message.startsWith('DEBUG:')) {
+      self.postMessage({ type: 'debug_error', logs: [error.message.replace('DEBUG:', '').trim()] });
+    } else {
+      self.postMessage({ type: 'error', message: error.message });
+    }
   }
 };
 
 /**
- * Procesa un lote de registros: Merge de pacientes e Indexación.
- * FIX BUG-003: Recibe nhcKey como parámetro en lugar de re-detectarlo (evita desincronización).
- * FIX BUG-004: No llama a flushIndex() al final — finalizeIndexing() lo hace una sola vez.
+ * Procesa un lote de registros aplicando la transformación determinista
  */
-async function processBatch(records: any[], currentTotal: number, nhcKey: string) {
+async function processBatch(records: any[], currentTotal: number, mapping: FormMapping) {
   if (records.length === 0) return;
-  
-  const sample = records[0];
-  const keys = Object.keys(sample);
+
+  // Normalización previa de cabeceras basada en aliases
+  const normalizedRecords = records.map(record => {
+    const normalized: any = {};
+    if (mapping.headerAliases) {
+      for (const [canonical, aliases] of Object.entries(mapping.headerAliases)) {
+        const foundKey = Object.keys(record).find(k => 
+          aliases.some(a => {
+            const cleanA = a.toLowerCase().trim();
+            const cleanK = k.toLowerCase().trim().replace(/:$/, '');
+            return cleanA === cleanK;
+          })
+        );
+        if (foundKey) normalized[canonical] = record[foundKey];
+      }
+    }
+    
+    // Añadir campos que ya vengan en formato canónico o estén en visualCategories
+    const allExpectedKeys = new Set([
+      mapping.keys.nhc, mapping.keys.idToma, mapping.keys.ordenToma, mapping.keys.fechaToma,
+      ...Object.values(mapping.demographics),
+      ...Object.values(mapping.visualCategories).flat()
+    ]);
+
+    for (const key of Object.keys(record)) {
+      if (!normalized[key] && allExpectedKeys.has(key)) {
+        normalized[key] = record[key];
+      }
+    }
+    return normalized;
+  });
 
   const batchNhcs = Array.from(new Set(
-    records.map(r => r[nhcKey]).filter(Boolean).map(String)
+    normalizedRecords.map(r => r[mapping.keys.nhc]).filter(Boolean).map(String)
   ));
 
   const existingPatients = await db.getBatch(db.stores.patients, batchNhcs);
   const batchPatients: Record<string, PatientData> = { ...existingPatients };
 
-  const findKey = (keywords: string[], exclusions: string[] = []) => {
-    for (const kw of keywords) {
-      const match = keys.find(k => {
-        const uk = k.toUpperCase().replace(/[^A-Z0-9]/g, '');
-        const isExcluded = exclusions.some(ex => uk.includes(ex));
-        return uk.includes(kw) && !isExcluded;
-      });
-      if (match) return match;
-    }
-    return undefined;
-  };
+  const { nhc: nhcKey, idToma: idTomaKey, ordenToma: ordenTomaKey } = mapping.keys;
+  const demographics = mapping.demographics;
 
-  const idTomaKey = findKey(['IDTOMA', 'IDENTIFICADORTOMA', 'EPISODIO']) || 'ID_TOMA';
-  const ordenTomaKey = findKey(['ORDENTOMA', 'ORDEN', 'VERSION']) || 'ORDEN_TOMA';
-
-  for (const record of records) {
+  for (const record of normalizedRecords) {
     const nhc = record[nhcKey] ? String(record[nhcKey]) : null;
-    if (!nhc) continue;
+    if (!nhc) continue; // Si llegara a faltar, ya deberíamos haber lanzado el error en la lectura
 
     if (!batchPatients[nhc]) {
-      const findValue = (keywords: string[], exclusions: string[] = []) => {
-        const key = findKey(keywords, exclusions);
-        return key ? record[key] : '';
-      };
+      const demoData: Record<string, string> = {};
+      if (demographics) {
+          for (const [canonicalKey, sourceKey] of Object.entries(demographics)) {
+              demoData[canonicalKey] = record[sourceKey] || '';
+          }
+      }
+
+      // Regla especial HCE-ALG: Evitar duplicidad de fechas
+      if (record['Fecha_Observacion_Clinica'] && record['EC_Fecha_Toma'] === record['Fecha_Observacion_Clinica']) {
+        delete record['Fecha_Observacion_Clinica'];
+      }
 
       batchPatients[nhc] = {
         nhc,
-        demographics: {
-          NOMBRE: findValue(['NOMBRE', 'APELLIDO'], ['CIUDAD', 'POBLACION', 'USUARIO', 'PROCESO']),
-          SEXO: findValue(['SEXO', 'GENERO']),
-          EDAD: findValue(['EDAD', 'ANOS'], ['FECHA', 'NACIMIENTO']), 
-          // Corrección según Coordinación: Usar domicilio o CP si ciudad es código numérico
-          CIUDAD: findValue(['DOMICILIO', 'DIRECCION', 'POBLACION', 'CIUDAD'], ['CODIGO', 'NUM']),
-          // Corrección BUG-007: Excluir 'PROCESO' de la búsqueda de CP/POSTAL para evitar que 'EC_Proceso' coincida con 'CP'
-          POSTAL: findValue(['POSTAL', 'CP', 'ZIP'], ['PROCESO']),
-          PROCESO: findValue(['ECPROCESO2', 'PROCESO'])
-        },
+        demographics: demoData,
         tomas: {}
       };
     }
 
-    const idToma = record[idTomaKey] || `T-${currentTotal}-${record[ordenTomaKey] || 'X'}`;
-    const ordenToma = parseInt(record[ordenTomaKey]) || 0;
+    const idToma = record[idTomaKey];
+    const ordenToma = parseInt(record[ordenTomaKey]);
+    
+    if (!idToma || isNaN(ordenToma)) {
+        throw new Error(`DEBUG: Falta Identificador de Toma o de Orden en línea NHC ${nhc}`);
+    }
 
     if (!batchPatients[nhc].tomas[idToma]) {
       batchPatients[nhc].tomas[idToma] = {
@@ -182,11 +206,13 @@ async function processBatch(records: any[], currentTotal: number, nhcKey: string
       }
     }
     
-    // FIX BUG-005: La comprobación de existencia ya evita duplicados dentro del lote.
-    // Los registros cargados de IDB via getBatch están preservados en batchPatients[nhc].tomas,
-    // así que el historial previo persiste correctamente.
     const exists = batchPatients[nhc].tomas[idToma].registros.some(r => r.ordenToma === ordenToma);
-    if (!exists) {
+    if (exists) {
+      // Duplicado detectado: No bloquear ingesta, marcar registro y advertir.
+      self.postMessage({ type: 'debug_warn', logs: [`Duplicado detectado en NHC ${nhc}, Toma ${idToma}, Orden ${ordenToma}`] });
+      record._is_duplicate = true;
+      batchPatients[nhc].tomas[idToma].registros.push({ ordenToma, data: record });
+    } else {
       batchPatients[nhc].tomas[idToma].registros.push({ ordenToma, data: record });
     }
   }

@@ -2,7 +2,7 @@
  * Parser de CSV optimizado para grandes volúmenes y robustez clínica.
  * Maneja BOM, diferentes finales de línea y delimitadores automáticos.
  */
-export function* streamCSV(csvText: string): Generator<any> {
+export function* streamCSV(csvText: string, forcedDelimiter?: string): Generator<any> {
   if (!csvText || csvText.length < 5) return;
 
   // 1. Limpieza inicial: eliminar BOM si existe
@@ -21,7 +21,7 @@ export function* streamCSV(csvText: string): Generator<any> {
   if (firstLineEnd === -1) firstLineEnd = csvText.length;
   
   const firstLine = csvText.slice(0, firstLineEnd).trim();
-  const delimiter = detectDelimiter(firstLine);
+  const delimiter = forcedDelimiter || detectDelimiter(firstLine);
   const headers = parseCSVLine(firstLine, delimiter).map(h => h.trim());
 
   let pos = firstLineEnd;

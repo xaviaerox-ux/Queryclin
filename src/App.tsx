@@ -1,5 +1,6 @@
-import React, { useState, useEffect, useMemo } from 'react';
-import { Sun, Moon, Database, Users, HelpCircle } from 'lucide-react';
+ import React, { useState, useEffect, useMemo } from 'react';
+import { Sun, Moon, Database, Users, HelpCircle, ShieldCheck, Search } from 'lucide-react';
+import * as XLSX from 'xlsx';
 import { HCEData } from './core/types';
 import { searchEngine, SearchResult } from './lib/searchEngine';
 import { db } from './storage/indexedDB';
@@ -8,6 +9,7 @@ import Results from './components/Results';
 import HCEView from './components/HCEView';
 import Help from './components/Help';
 import Evolution from './components/Evolution';
+import { FORMS } from './core/mappings';
 
 /**
  * Error Boundary para mitigar fallos en tiempo de renderizado
@@ -33,8 +35,8 @@ class ErrorBoundary extends React.Component<{ children: React.ReactNode }, { has
   }
 }
 
-const VERSION = '3.9.0';
-const BUILD_DATE = '24/04/2026 13:45';
+const VERSION = '4.2.1';
+const BUILD_DATE = '30/04/2026 10:37';
 
 type ViewState = 'home' | 'results' | 'hce' | 'help' | 'evolution';
 
@@ -47,6 +49,8 @@ export default function App() {
   const [isProcessing, setIsProcessing] = useState(false);
   const [progressPercent, setProgressPercent] = useState(0);
   const [patientCount, setPatientCount] = useState<number>(0);
+  const [activeFormId, setActiveFormId] = useState<string>('');
+  const [debugLogs, setDebugLogs] = useState<string[]>([]);
 
   const [theme, setTheme] = useState<'light' | 'dark'>(() => {
     return (localStorage.getItem('queryclin_theme') as 'light' | 'dark') || 'light';
@@ -66,9 +70,11 @@ export default function App() {
       }
 
       const count = await db.getFromStore(db.stores.metadata, 'patient_count');
+      const formId = await db.getFromStore(db.stores.metadata, 'form_id');
       if (count) {
         setData({ patients: {} });
         setPatientCount(count);
+        if (formId) setActiveFormId(formId);
         await searchEngine.loadIndex({ patients: {} });
         await searchEngine.loadDictionary();
       }
@@ -100,37 +106,53 @@ export default function App() {
 
   const toggleTheme = () => setTheme(prev => prev === 'light' ? 'dark' : 'light');
 
-  const handleFileUpload = (file: File) => {
+  const handleFileUpload = async (file: File, formId: string, config?: { fileType: string, delimiter: string }) => {
+    const mapping = FORMS.find(f => f.id === formId);
+    if (!mapping) {
+        alert("Error crítico: Formulario no válido.");
+        return;
+    }
+
     setIsProcessing(true);
+    setDebugLogs([]);
     setProgressPercent(0);
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      // FIX UTF-8: Leer como ArrayBuffer y decodificar explícitamente para evitar fallos de codificación
-      const buffer = e.target?.result as ArrayBuffer;
+
+    try {
+      const buffer = await file.arrayBuffer();
       let text = '';
-      
-      try {
-        // Intento 1: UTF-8 estricto
-        const decoder = new TextDecoder('utf-8', { fatal: true });
-        text = decoder.decode(buffer);
-        console.log('[App] Archivo decodificado como UTF-8');
-      } catch (err) {
-        // Intento 2: IBM850 (Codificación MS-DOS común en exportaciones antiguas de hospitales españoles)
-        // El usuario reportó 'Inducci¢n', lo cual confirma que el byte 0xA2 (ó en DOS) 
-        // se está malinterpretando. IBM850 es el estándar para estos casos.
-        console.warn('[App] Fallo en UTF-8, intentando con IBM850 (DOS)...');
-        const testDecoder = new TextDecoder('windows-1252');
-        text = testDecoder.decode(buffer);
-        
-        // Si detectamos el patrón de error del usuario (¢ en lugar de ó), forzamos la decodificación DOS
-        if (text.includes('¢') || text.includes(' ') || text.includes('¡') || text.includes('¤')) {
-           console.log('[App] Detectada codificación CP850 (DOS), aplicando transcodificación...');
-           text = decodeCP850(buffer);
+
+      if (file.name.toLowerCase().endsWith('.xlsx') || config?.fileType === 'xlsx') {
+        const workbook = XLSX.read(buffer, { type: 'array' });
+        const worksheet = workbook.Sheets[workbook.SheetNames[0]];
+        text = XLSX.utils.sheet_to_csv(worksheet, { FS: config?.delimiter || '|' });
+        console.log('[App] Archivo Excel convertido a CSV para procesamiento');
+      } else {
+        try {
+          const decoder = new TextDecoder('utf-8', { fatal: true });
+          text = decoder.decode(buffer);
+          console.log('[App] Archivo decodificado como UTF-8');
+        } catch (err) {
+          console.warn('[App] Fallo en UTF-8, intentando con IBM850 (DOS)...');
+          const testDecoder = new TextDecoder('windows-1252');
+          text = testDecoder.decode(buffer);
+          
+          if (text.includes('¢') || text.includes(' ') || text.includes('¡') || text.includes('¤')) {
+             console.log('[App] Detectada codificación CP850 (DOS), aplicando transcodificación...');
+             text = decodeCP850(buffer);
+          }
         }
       }
 
       const worker = new Worker(new URL('./ingestion/csv.worker.ts', import.meta.url) + '?v=' + Date.now(), { type: 'module' });
-      worker.postMessage({ csvText: text });
+      worker.postMessage({ 
+        csvText: text, 
+        mapping, 
+        strictMode: false,
+        delimiter: config?.delimiter || '|',
+        source_file: file.name,
+        ingest_timestamp: new Date().toISOString()
+      });
+      
       worker.onmessage = async (event) => {
         const { type, progress, total, message, patientCount } = event.data;
 
@@ -142,22 +164,32 @@ export default function App() {
         }
 
         if (type === 'complete') {
-          try {
-            console.log("[App] Ingesta completada. Sincronizando interfaz...");
-            await searchEngine.loadIndex({ patients: {} }); 
-            await searchEngine.loadDictionary();
-            
-            setPatientCount(patientCount);
-            // IMPORTANTE: Informar a la UI de que los datos están listos
-            setData({ patients: searchEngine.getPatientSkeletons() }); 
-            setIsProcessing(false);
-            worker.terminate();
-          } catch (err: any) {
-            console.error("[App] Error al cargar el índice tras la ingesta:", err);
-            alert("Error al activar el buscador: " + err.message);
-            setIsProcessing(false);
-            worker.terminate();
-          }
+          console.log("[App] Ingesta completada. Sincronizando interfaz...");
+          
+          // Primero actualizamos estados ligeros para cerrar el cargador
+          setPatientCount(patientCount);
+          setActiveFormId(formId);
+          setData({ patients: {} }); 
+          setIsProcessing(false);
+          worker.terminate();
+
+          // Cargamos el índice pesado en el siguiente tick
+          setTimeout(async () => {
+            try {
+              await searchEngine.loadIndex({ patients: {} }); 
+              await searchEngine.loadDictionary();
+            } catch (err: any) {
+              console.error("[App] Error diferido al cargar el índice:", err);
+              alert("Aviso: El buscador puede tardar unos segundos en activarse.");
+            }
+          }, 100);
+        } else if (type === 'debug_error') {
+          setDebugLogs(event.data.logs);
+          setIsProcessing(false);
+          worker.terminate();
+        } else if (type === 'debug_warn') {
+          // No aborta, solo acumula los logs
+          setDebugLogs(prev => [...prev, ...event.data.logs]);
         } else if (type === 'error') {
           console.error("Error en el worker:", message);
           alert("Error crítico durante la ingesta: " + message);
@@ -172,8 +204,11 @@ export default function App() {
         setIsProcessing(false);
         worker.terminate();
       };
-    };
-    reader.readAsArrayBuffer(file);
+    } catch (err: any) {
+      console.error("Fallo crítico en handleFileUpload:", err);
+      setIsProcessing(false);
+      alert("Error preparando el archivo para ingesta: " + err.message);
+    }
   };
 
   const handleSearch = async (q: string, filters?: { dateRange?: [string, string], service?: string }) => {
@@ -192,6 +227,7 @@ export default function App() {
         searchEngine.startIndexing(); // Reinicia el estado interno del buscador
         setData(null);
         setPatientCount(0);
+        setActiveFormId('');
         setSearchResults([]);
         setView('home');
         setIsProcessing(false);
@@ -208,10 +244,10 @@ export default function App() {
     <ErrorBoundary>
       <div className="h-screen flex flex-col bg-[var(--bg-clinical)] text-[var(--text-primary)] font-sans overflow-hidden">
         <header className="h-[64px] bg-[var(--glass-bg)] backdrop-blur-md border-b border-[var(--border-clinical)] px-6 flex items-center justify-between z-[100] shrink-0">
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 shrink-0">
             <div 
               className="text-[20px] font-black tracking-tight cursor-pointer text-[var(--accent-clinical)]"
-              onClick={() => setView('home')}
+              onClick={() => { setView('home'); setQuery(''); }}
             >
               Query<span className="font-light text-[var(--text-primary)]">clin</span>
             </div>
@@ -224,6 +260,27 @@ export default function App() {
               <span className="opacity-50 border-l border-[var(--accent-clinical)]/30 pl-1">{BUILD_DATE}</span>
             </button>
           </div>
+
+          {/* Buscador Integrado en Cabecera */}
+          {view !== 'home' && (data || patientCount > 0) && (
+            <div className="flex-1 max-w-xl mx-8 animate-in fade-in slide-in-from-top-2 duration-300">
+              <div className="relative flex items-center group">
+                <Search className="absolute left-4 text-[var(--text-secondary)] group-focus-within:text-[var(--accent-clinical)] transition-colors" size={16} />
+                <input
+                  type="text"
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      handleSearch(query);
+                    }
+                  }}
+                  placeholder="Buscar paciente, patología, síntoma..."
+                  className="w-full pl-10 pr-4 py-2 bg-[var(--bg-clinical)] border border-[var(--border-clinical)] rounded-xl focus:border-[var(--accent-clinical)] focus:outline-none transition-all text-sm font-bold text-[var(--text-primary)] shadow-sm"
+                />
+              </div>
+            </div>
+          )}
           
           <div className="flex items-center gap-4 h-full">
             <button
@@ -287,14 +344,47 @@ export default function App() {
             </div>
           )}
 
-          {(view === 'home' || view === 'results') && (
-            <div className={`transition-all duration-500 ease-in-out ${view === 'results' ? 'border-b border-[var(--border-clinical)] pb-6 bg-[var(--surface-clinical)] shadow-sm' : ''}`}>
+          {debugLogs.length > 0 && !isProcessing && (
+            <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[200] flex flex-col items-center justify-center p-8 animate-in fade-in">
+              <div className="bg-red-950 border border-red-500 rounded-2xl w-full max-w-3xl p-8 shadow-2xl overflow-hidden flex flex-col max-h-[80vh]">
+                <div className="flex items-center gap-4 mb-6 text-red-500">
+                  <div className="w-12 h-12 bg-red-500/20 rounded-full flex items-center justify-center">
+                    <ShieldCheck size={24} />
+                  </div>
+                  <div>
+                    <h2 className="text-2xl font-black uppercase tracking-widest">Modo Debug</h2>
+                    <p className="text-red-400/80 font-bold text-sm">Registro de inconsistencias o alertas.</p>
+                  </div>
+                </div>
+                
+                <div className="flex-1 overflow-y-auto bg-black/50 rounded-xl p-4 border border-red-500/30 space-y-2">
+                  {debugLogs.map((log, i) => (
+                    <div key={i} className="text-red-300 font-mono text-[13px] break-words">
+                      <span className="opacity-50 mr-2">[{String(i+1).padStart(3, '0')}]</span>
+                      {log}
+                    </div>
+                  ))}
+                </div>
+
+                <div className="mt-8 flex justify-end">
+                  <button 
+                    onClick={() => setDebugLogs([])}
+                    className="px-6 py-3 bg-red-600 hover:bg-red-500 text-white font-black uppercase tracking-widest rounded-xl transition-all shadow-lg active:scale-95"
+                  >
+                    Entendido, cerrar
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {view === 'home' && (
+            <div className="transition-all duration-500 ease-in-out">
               <Home 
                 onUpload={handleFileUpload} 
                 onSearch={handleSearch} 
                 getSuggestions={(q) => searchEngine.getSuggestions(q)}
                 hasData={!!data || patientCount > 0} 
-                compact={view === 'results'}
               />
             </div>
           )}
@@ -319,6 +409,7 @@ export default function App() {
               onBack={() => setView('results')}
               query={query}
               onNavigate={(idx: number) => setSelectedIndex(idx)}
+              formId={activeFormId}
             />
           )}
           {view === 'help' && (

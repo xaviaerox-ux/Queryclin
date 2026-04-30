@@ -1,9 +1,10 @@
 import React, { useState, useRef } from 'react';
 import { Search, Upload, ShieldCheck, Database, Zap, Filter, Calendar, Stethoscope } from 'lucide-react';
+import { FORMS } from '../core/mappings';
 
 interface HomeProps {
   hasData: boolean;
-  onUpload: (file: File) => void;
+  onUpload: (file: File, formId: string, config?: any) => void;
   onSearch: (query: string, filters?: { dateRange?: [string, string], service?: string }) => void;
   getSuggestions: (query: string) => string[];
   compact?: boolean;
@@ -21,6 +22,10 @@ export default function Home({ hasData, onUpload, onSearch, getSuggestions, comp
   const [suggestions, setSuggestions] = useState<string[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [activeSuggestionIndex, setActiveSuggestionIndex] = useState(-1);
+  const [selectedFormId, setSelectedFormId] = useState<string>('');
+  const [ingestionConfig, setIngestionConfig] = useState({
+    fileType: 'auto'
+  });
 
   
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -47,28 +52,81 @@ export default function Home({ hasData, onUpload, onSearch, getSuggestions, comp
             <Upload size={32} />
           </div>
           <h2 className="text-2xl font-bold mb-2 text-[var(--text-primary)]">Inicializar Memoria Local</h2>
-          <p className="text-[var(--text-secondary)] text-sm mb-8 leading-relaxed">
-            Importe la matriz de datos estructurada (.csv) para cargar la base en la memoria temporal del analizador.
+          <p className="text-[var(--text-secondary)] text-sm mb-6 leading-relaxed">
+            Seleccione el formulario clínico correspondiente antes de importar la matriz de datos (.txt, .xlsx).
           </p>
-          <input
-            type="file"
-            accept=".csv, .txt"
-            className="hidden"
-            ref={fileInputRef}
-            onChange={(e) => {
-              const file = e.target.files?.[0];
-              if (file) {
-                 onUpload(file);
-                 if (fileInputRef.current) fileInputRef.current.value = '';
-              }
-            }}
-          />
-          <button
-            onClick={() => fileInputRef.current?.click()}
-            className="w-full bg-[var(--accent-clinical)] hover:opacity-90 text-white font-bold py-3 px-4 rounded-xl transition-all shadow-lg active:scale-95"
-          >
-            Importar Base de Datos
-          </button>
+
+          <div className="space-y-8 mt-8">
+            {/* Paso 1 */}
+            <div className="relative pl-10 text-left border-l-2 border-dashed border-[var(--border-clinical)] pb-4">
+              <div className="absolute -left-[13px] top-0 w-6 h-6 rounded-full bg-[var(--accent-clinical)] text-white text-[10px] font-black flex items-center justify-center shadow-lg">1</div>
+              <label className="block text-[11px] font-black text-[var(--accent-clinical)] uppercase tracking-[2px] mb-3">
+                Seleccionar Modelo Clínico
+              </label>
+              <div className="relative group">
+                <Stethoscope className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-secondary)] group-focus-within:text-[var(--accent-clinical)]" size={16} />
+                <select
+                  value={selectedFormId}
+                  onChange={(e) => setSelectedFormId(e.target.value)}
+                  className="w-full pl-10 pr-4 py-4 bg-[var(--bg-clinical)] border-2 border-[var(--border-clinical)] rounded-xl focus:border-[var(--accent-clinical)] focus:outline-none transition-all text-sm font-bold text-[var(--text-primary)] cursor-pointer"
+                >
+                  <option value="" disabled>-- Elegir especialidad --</option>
+                  {FORMS.map(f => (
+                    <option key={f.id} value={f.id}>{f.name}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            {/* Paso 2 */}
+            <div className="relative pl-10 text-left border-l-2 border-dashed border-[var(--border-clinical)] pb-4">
+              <div className="absolute -left-[13px] top-0 w-6 h-6 rounded-full bg-[var(--accent-clinical)] text-white text-[10px] font-black flex items-center justify-center shadow-lg">2</div>
+              <label className="block text-[11px] font-black text-[var(--accent-clinical)] uppercase tracking-[2px] mb-3">
+                Configurar Archivo de Datos
+              </label>
+              <div className="relative group">
+                <Database className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-secondary)] group-focus-within:text-[var(--accent-clinical)]" size={16} />
+                <select
+                  value={ingestionConfig.fileType}
+                  onChange={(e) => setIngestionConfig(prev => ({ ...prev, fileType: e.target.value }))}
+                  className="w-full pl-10 pr-4 py-4 bg-[var(--bg-clinical)] border-2 border-[var(--border-clinical)] rounded-xl focus:border-[var(--accent-clinical)] focus:outline-none transition-all text-sm font-bold text-[var(--text-primary)] cursor-pointer"
+                >
+                  <option value="auto">Detección Automática (Recomendado)</option>
+                  <option value="txt">Archivo Plano / Texto (.txt, .csv)</option>
+                  <option value="xlsx">Libro Excel (.xlsx)</option>
+                </select>
+              </div>
+            </div>
+
+            {/* Paso 3 */}
+            <div className="relative pl-10 text-left">
+              <div className="absolute -left-[13px] top-0 w-6 h-6 rounded-full bg-[var(--accent-clinical)] text-white text-[10px] font-black flex items-center justify-center shadow-lg">3</div>
+              <label className="block text-[11px] font-black text-[var(--accent-clinical)] uppercase tracking-[2px] mb-3">
+                Finalizar Importación
+              </label>
+              <input
+                type="file"
+                accept=".csv, .txt, .xlsx"
+                className="hidden"
+                ref={fileInputRef}
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file && selectedFormId) {
+                     onUpload(file, selectedFormId, { ...ingestionConfig, delimiter: '|' });
+                     if (fileInputRef.current) fileInputRef.current.value = '';
+                  }
+                }}
+              />
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                disabled={!selectedFormId}
+                className="w-full bg-[var(--accent-clinical)] hover:bg-[var(--accent-clinical)]/90 disabled:opacity-30 disabled:grayscale text-white font-black py-4 px-6 rounded-xl transition-all shadow-[0_8px_30px_rgb(0,0,0,0.12)] active:scale-[0.98] flex items-center justify-center gap-3"
+              >
+                <Upload size={20} />
+                {selectedFormId ? 'CARGAR ARCHIVO AHORA' : 'SELECCIONE MODELO'}
+              </button>
+            </div>
+          </div>
           
           <div className="grid grid-cols-3 gap-4 mt-8 pt-6 border-t border-[var(--border-clinical)]">
             <div className="space-y-2">
@@ -208,38 +266,30 @@ export default function Home({ hasData, onUpload, onSearch, getSuggestions, comp
         </div>
 
         {showFilters && (
-          <div className="absolute top-full left-0 right-0 mt-4 bg-[var(--surface-clinical)] border border-[var(--border-clinical)] rounded-2xl p-6 shadow-2xl z-20 grid grid-cols-2 gap-6 animate-in fade-in slide-in-from-top-2 duration-300">
+          <div className="absolute top-full left-0 right-0 mt-4 bg-[var(--surface-clinical)] border border-[var(--border-clinical)] rounded-2xl p-6 shadow-2xl z-20 animate-in fade-in slide-in-from-top-2 duration-300">
             <div>
               <label className="flex items-center gap-2 text-[11px] font-bold text-[var(--text-secondary)] uppercase tracking-wider mb-2">
                 <Calendar size={14} /> Rango de Fechas
               </label>
-              <div className="flex items-center gap-2">
-                <input
-                  type="date"
-                  value={dateStart}
-                  onChange={(e) => setDateStart(e.target.value)}
-                  className="w-full px-3 py-2 bg-[var(--bg-clinical)] border border-[var(--border-clinical)] rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--accent-clinical)] text-sm text-[var(--text-primary)]"
-                />
-                <span className="text-[var(--text-secondary)]">-</span>
-                <input
-                  type="date"
-                  value={dateEnd}
-                  onChange={(e) => setDateEnd(e.target.value)}
-                  className="w-full px-3 py-2 bg-[var(--bg-clinical)] border border-[var(--border-clinical)] rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--accent-clinical)] text-sm text-[var(--text-primary)]"
-                />
+              <div className="flex items-center gap-4">
+                <div className="flex-1">
+                   <input
+                    type="date"
+                    value={dateStart}
+                    onChange={(e) => setDateStart(e.target.value)}
+                    className="w-full px-4 py-3 bg-[var(--bg-clinical)] border border-[var(--border-clinical)] rounded-xl focus:outline-none focus:ring-2 focus:ring-[var(--accent-clinical)] text-sm text-[var(--text-primary)]"
+                  />
+                </div>
+                <span className="text-[var(--text-secondary)] font-bold">HASTA</span>
+                <div className="flex-1">
+                  <input
+                    type="date"
+                    value={dateEnd}
+                    onChange={(e) => setDateEnd(e.target.value)}
+                    className="w-full px-4 py-3 bg-[var(--bg-clinical)] border border-[var(--border-clinical)] rounded-xl focus:outline-none focus:ring-2 focus:ring-[var(--accent-clinical)] text-sm text-[var(--text-primary)]"
+                  />
+                </div>
               </div>
-            </div>
-            <div>
-              <label className="flex items-center gap-2 text-[11px] font-bold text-[var(--text-secondary)] uppercase tracking-wider mb-2">
-                <Stethoscope size={14} /> Especialidad / Servicio
-              </label>
-              <input
-                type="text"
-                value={service}
-                onChange={(e) => setService(e.target.value)}
-                placeholder="Ej: ALG, URGENCIAS..."
-                className="w-full px-3 py-2 bg-[var(--bg-clinical)] border border-[var(--border-clinical)] rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--accent-clinical)] text-sm text-[var(--text-primary)] placeholder:text-[var(--text-secondary)]/30"
-              />
             </div>
           </div>
         )}

@@ -1,11 +1,11 @@
-# Queryclin — HCE Intelligence Dashboard
+# Queryclin — HCE Intelligence Dashboard (V4.2.1)
 
 Queryclin es una plataforma de exploración y análisis de **Historias Clínicas Electrónicas (HCE)** diseñada bajo principios de **privacidad absoluta y rendimiento local**. Permite al personal clínico navegar, buscar y segmentar grandes volúmenes de datos directamente en el navegador sin dependencias de red.
 
 ---
 
 ## 1. El Problema y Nuestro Propósito
-El personal médico se ve frecuentemente forzado a lidiar con exportaciones masivas de HCE en formatos crudos (CSV/Texto). Interpretar estas sábanas de datos genera una inmensa fatiga visual y riesgo de errores. 
+El personal médico se ve frecuentemente forzado a lidiar con exportaciones masivas de HCE en formatos crudos (Texto plano o Excel). Interpretar estas sábanas de datos genera una inmensa fatiga visual y riesgo de errores. 
 
 **Queryclin** nació con la misión de construir un motor que permitiera la navegación fluida y la búsqueda contextual profunda en vastos expedientes en milisegundos.
 
@@ -29,7 +29,7 @@ Tras las últimas refactorizaciones para asegurar la escalabilidad masiva y esta
 
 - **React 19 + TypeScript:** Esquema de datos estricto para garantizar la integridad clínica.
 - **Capa de Dominio (`src/core/`):** Modelos de datos y taxonomía clínica unificada.
-- **Capa de Aplicación e Ingesta (`src/ingestion/`):** Workers de procesamiento paralelo y streaming de CSV.
+- **Capa de Aplicación e Ingesta (`src/ingestion/`):** Workers de procesamiento paralelo y streaming de datos tabulares.
 - **Capa de Infraestructura y Storage (`src/storage/`):** Persistencia en IndexedDB con fragmentación inteligente.
 - **Motor de Búsqueda Clínico (`src/engine/`):** 
   - *`IndexerService.ts`*: Ingesta asíncrona con seguimiento de longitudes para BM25.
@@ -88,6 +88,13 @@ Tras las últimas refactorizaciones para asegurar la escalabilidad masiva y esta
 - **Algoritmo BM25**: Implementación de **Okapi BM25** con saturación de frecuencia y normalización por longitud de documento, superando al TF-IDF tradicional.
 - **Clinical Synonym Mapper**: Diccionario integrado de 23 patologías de alta prevalencia para expansión automática de consultas (ej. `HTA` → `Hipertensión`).
 - **Expansión de Bigramas**: Detección de frases clínicas compuestas en la búsqueda del usuario.
+
+### Fase 12: Modernización y Soporte Excel (V4.2.1 - ACTUAL ✅)
+- **Soporte Nativo XLSX**: Integración con motores de procesamiento de hojas de cálculo para ingesta directa de Excel.
+- **Modelos Deterministas**: Implementación de esquemas clínicos rígidos (HCE-ALG, MIR, OBS) para garantizar el mapeo de campos críticos como `N.H.C`.
+- **Rediseño UX Step-by-Step**: Transformación del proceso de carga en un asistente de 3 pasos intuitivo.
+- **Buscador Ubicuo**: Integración del motor de búsqueda en la cabecera principal para maximizar el espacio de análisis clínico.
+- **Inmunidad a Conflictos**: Uso de diccionarios `Object.create(null)` para prevenir colisiones con palabras reservadas en datos reales.
 
 
 ---

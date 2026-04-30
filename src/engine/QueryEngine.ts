@@ -25,14 +25,14 @@ export interface SearchResult {
 
 export class QueryEngine {
   private documentCount = 0;
-  private patientSkeletons: Record<string, any> = {};
-  private termFragmentCounts: Record<string, number> = {};
+  private patientSkeletons: Record<string, any> = Object.create(null);
+  private termFragmentCounts: Record<string, number> = Object.create(null);
   /** Longitud media de los documentos indexados (en tokens). Necesaria para BM25. */
   private avgDocLength = 0;
   public dictionary: string[] = [];
 
   public async loadIndex() {
-    this.patientSkeletons = {};
+    this.patientSkeletons = Object.create(null);
     
     console.log("[QueryEngine] Cargando metadatos del índice...");
     
@@ -129,7 +129,7 @@ export class QueryEngine {
     if (must.length === 0 && should.length === 0) return await this.getAllRecords(filters);
 
     const allQueryTokens = Array.from(new Set([...uniqueMust, ...should, ...mustNot]));
-    const indexResults: Record<string, any[]> = {};
+    const indexResults: Record<string, any[]> = Object.create(null);
     
     if (allQueryTokens.length > 0) {
       const allFragmentKeys: string[] = [];
@@ -152,7 +152,7 @@ export class QueryEngine {
       }
     }
 
-    const patientMatches: Record<string, any> = {};
+    const patientMatches: Record<string, any> = Object.create(null);
     
     const mustNotRecords = new Set<string>();
     for (const term of mustNot) {

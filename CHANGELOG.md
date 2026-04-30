@@ -1,5 +1,54 @@
 Todos los cambios notables realizados en el proyecto Queryclin serán documentados en este archivo, detallando el efecto del cambio y el motivo (el "por qué") de forma cronológica.
 
+## [2026-04-30]
+### Modernización de Modelos y Simplificación de Interfaz (V4.2.1)
+- **`mappings.ts`**: Actualizados los modelos de formulario a una terna estándar: **HCE-ALG**, **HCE-MIR** y **HCE-OBS**. Se han unificado los IDs y nombres para reflejar la especialización del sistema.
+- **`Home.tsx`**: Eliminada la sección de "Modo de Ejecución" (STRICT/EXPLORATION). El sistema ahora opera de forma determinista basándose en el mapeo explícito seleccionado por el usuario.
+- **`Home.tsx`**: Rediseñada la pestaña de filtros de búsqueda. Se ha eliminado el campo "Especialidad" (ya que viene predefinida por el modelo importado) y se ha optimizado el layout del rango de fechas para ocupar todo el ancho disponible.
+- **`App.tsx`**: Simplificada la lógica de subida de archivos eliminando la gestión del estado `strictMode`, fijándolo a `false` por defecto para permitir una ingesta fluida (estilo "Exploration") ignorando campos no mapeados sin bloquear la UI.
+- **`App.tsx`**: El modal de "Modo Debug" ahora solo es visible si el proceso no está activo, evitando interrupciones visuales durante la carga.
+- **`csv.worker.ts`**: Silenciadas las advertencias de campos no mapeados en el UI; ahora solo se reportan en la consola del desarrollador para una experiencia de ingesta totalmente automática.
+- **`mappings.ts`**: Actualizado el modelo **HCE-ALG** con la estructura exacta del formulario hospitalario real (incluyendo campos como `N.H.C`, `EC_Proceso2`, etc.) para garantizar una ingesta 100% determinista y una categorización visual precisa.
+- **`IndexerService.ts` & `QueryEngine.ts`**: Corregido error crítico `push is not a function` mediante el uso de `Object.create(null)` para todos los diccionarios de términos.
+- **`Home.tsx`**: Rediseño integral de la experiencia de usuario (UX) mediante un sistema de **3 pasos numerados** con iconos clínicos, guiando al usuario desde la selección del modelo hasta la carga final del archivo.
+- **`App.tsx`**: Implementado soporte nativo para archivos **.xlsx** mediante la integración con la librería `xlsx`. El sistema ahora convierte hojas de cálculo a formato tabular compatible con el motor de búsqueda en tiempo real.
+- **`Evolution.tsx`**: Sincronizada la línea de tiempo del proyecto, incorporando los hitos de las versiones V3.8, V3.9 y la actual V4.2.1, además de actualizar el pie de página de la hoja de ruta.
+- **`App.tsx`**: Corregido error crítico de importación (`Search`) que causaba pantallas en blanco durante la navegación.
+- **Estética de Versión**: Restaurado el diseño original e inmutable del badge de versión en la cabecera, manteniendo la fecha de compilación visible junto al número de versión.
+- **`App.tsx`**: Implementado el **Buscador Ubicuo** integrado directamente en la cabecera del sistema. Al realizar búsquedas o navegar por el historial, el buscador se mantiene accesible de forma minimalista en la barra superior, optimizando el espacio de visualización clínica.
+- **Documentación Centralizada**: Actualizado el **Roadmap en README.md** (Fase 12) y sincronizada la versión global del proyecto a **V4.2.1**.
+- **Limpieza de Terminología**: Eliminadas todas las referencias obsoletas a "CSV" en la UI y manuales de ayuda, sustituyéndolas por "Archivo de datos / TXT / XLSX" para reflejar fielmente las capacidades actuales del motor.
+- **Gestión de Versiones**: Actualización de constantes `VERSION` y `BUILD_DATE` en el núcleo de la aplicación para un seguimiento preciso de los despliegues.
+
+## [2026-04-28]
+### Refinamiento Estético HCE-ALG (V4.2.0)
+- **`HCEView.tsx`**: Implementado el diseño de **Cabecera de Doble Barra** para HCE-ALG. La barra superior (fondo crema) muestra la identidad (NHC, CIPA, Sexo, Nacimiento, CP) y la inferior el contexto clínico (Ámbito, Proceso, Alergias, Edad).
+- **`HCEView.tsx`**: Rediseñada la **Línea de Tiempo (Sidebar)** para HCE-ALG. Ahora se presenta como una tabla compacta con cabecera "ID-Toma" y filas bicolor (cian/blanco) que muestran `OrdenT.#` y `F.Toma`.
+- **`mappings.ts`**: Limpiados los nombres de las categorías visuales (eliminando prefijos 00, 01, etc.) para que la interfaz muestre títulos clínicos limpios como "ANTECEDENTES" o "RESULTADOS PRUEBAS".
+- **`mappings.ts`**: Asegurada la presencia de campos críticos en la cabecera (Alergias, Proceso2, Ámbito) mediante alias y mapeo demográfico extendido.
+
+
+- **`Home.tsx` & `App.tsx`**: Implementados dos modos de ingesta: **STRICT** y **EXPLORATION**. El modo estricto detiene la ingesta al encontrar campos no mapeados, mientras que el modo exploración permite guardarlos de forma auditada, lanzando advertencias (`debug_warn`) en el visor.
+- **`csv.worker.ts`**: Reescritura del sistema de duplicados. Ahora, la colisión de `Orden_Toma` bajo un mismo `Id_Toma` no bloquea la ingesta. El sistema acepta el registro insertando el flag interno `_is_duplicate` y emite una advertencia visual.
+- **`csv.worker.ts`**: Mejoras en **Trazabilidad**. Ahora se graban automáticamente en IndexedDB metadatos forenses: `source_file` (nombre del CSV original) y `ingest_timestamp` (fecha ISO de importación), vinculados al formulario seleccionado.
+- **`HCEView.tsx`**: Si se ejecuta bajo EXPLORATION, los campos sobrantes ya no se descartan silenciosamente; se agrupan y renderizan bajo un nuevo apartado resaltado: **Campos no mapeados (debug)**.
+- **`HCEView.tsx`**: Añadido **Badge de Duplicidad** en la cabecera de la versión activa. Si un registro está marcado como duplicado, se tiñe de color ámbar y muestra el icono de advertencia en la cabecera del expediente.
+
+### Control Estricto y Auditoría de Datos (V4.0.1)
+- **`csv.worker.ts`**: Implementación de **Validación de Mapeo Completo**. Ahora se detecta y detiene la ingesta si el archivo CSV contiene columnas que no están declaradas en el `mapping` (evitando almacenamiento silencioso de datos anómalos).
+- **`csv.worker.ts`**: Modificada la validación estructural para que evalúe estrictamente la existencia de las claves `NHC`, `ID_TOMA` y `ORDEN_TOMA` en lugar de una lista completa.
+- **`csv.worker.ts`**: Añadida lógica anti-mezcla de registros. El Worker ahora emite una alerta si detecta colisión/duplicidad en el mismo `Orden_Toma` bajo un mismo `Id_Toma`.
+- **`App.tsx`**: Añadido **Modo Debug de Ingesta**. Una nueva vista modal que atrapa y muestra de manera estructurada los errores de validación (`debug_error`) emitidos por el Worker (ej. "Campos no mapeados", "Faltan claves").
+- **`HCEView.tsx`**: Se ha erradicado por completo el uso de la categoría dinámica `Otros Datos` para los campos no mapeados. Ahora la información que se pinta debe existir explícitamente en el `formMapping`.
+- **`HCEView.tsx`**: Implementación de **Navegador de Versiones de Toma**. Anteriormente el visor fusionaba todos los registros de una toma. Ahora se utiliza el `activeVersionIndex` y botones de navegación (`< >`) para garantizar el aislamiento ("Prohibido mezclar registros entre versiones"), renderizando solo la versión exacta seleccionada (`activeVersion.data`).
+
+### Arquitectura Determinista y Formulario Explícito (V4.0.0)
+- **`core/mappings.ts`**: Implementado nuevo sistema estricto de mapeo de formularios. El sistema ya no infiere las cabeceras del CSV heurísticamente.
+- **`App.tsx` & `Home.tsx`**: Añadido selector obligatorio de formulario previo a la ingesta. El `formId` se persiste de manera local en `IndexedDB` a través del metadata.
+- **`csv.worker.ts`**: Eliminadas las funciones de detección heurística (`detectNhcKey`, `findKey`). La ejecución se interrumpe lanzando un error crítico si falta la estructura clave esperada (`NHC`, `ID_TOMA`, `ORDEN_TOMA`) según el formulario.
+- **`HCEView.tsx`**: Eliminado el uso de clasificaciones dinámicas. Las categorías visuales de la historia clínica se extraen ahora fielmente y sin alteraciones del objeto `visualCategories` definido en el mapping correspondiente.
+- **`clinicalTaxonomy.ts`**: Lógica de heurística clínica descontinuada a favor del control determinista de campos vía mapping externo.
+
 ## [2026-04-27]
 ### Rediseño de Navegación HCE - Toma Única Activa
 - **`HCEView.tsx`**: Rediseño arquitectónico completo del visor de historias clínicas. Se elimina el scroll infinito de tomas apiladas y se implementa un **navegador de toma única activa**: solo se muestra una toma en pantalla a la vez.

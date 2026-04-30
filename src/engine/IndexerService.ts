@@ -7,22 +7,22 @@ export class IndexerService {
   private documentCount = 0;
   /** Acumulador para BM25: suma de todos los tokens indexados para calcular la longitud media. */
   private totalTokens = 0;
-  private tempIndex: Record<string, any[]> = {};
-  private tempGlobalTermCounts: Record<string, number> = {};
-  private tempSkeletons: Record<string, any> = {};
+  private tempIndex: Record<string, any[]> = Object.create(null);
+  private tempGlobalTermCounts: Record<string, number> = Object.create(null);
+  private tempSkeletons: Record<string, any> = Object.create(null);
   private tempSkeletonFragmentCount = 0;
-  private termFragmentCounts: Record<string, number> = {};
+  private termFragmentCounts: Record<string, number> = Object.create(null);
   private readonly FRAGMENT_SIZE_LIMIT = 2000;
   public dictionary: string[] = [];
 
   public startIndexing() {
     this.documentCount = 0;
     this.totalTokens = 0;
-    this.tempIndex = {};
-    this.tempGlobalTermCounts = {};
-    this.tempSkeletons = {};
+    this.tempIndex = Object.create(null);
+    this.tempGlobalTermCounts = Object.create(null);
+    this.tempSkeletons = Object.create(null);
     this.tempSkeletonFragmentCount = 0;
-    this.termFragmentCounts = {};
+    this.termFragmentCounts = Object.create(null);
     console.log('[IndexerService] Preparado para indexación incremental.');
   }
 
@@ -63,7 +63,7 @@ export class IndexerService {
         const tokens = globalTokenizer.tokenizeRecord(registro.data);
         const docLen = tokens.length; // BM25: longitud de este documento en tokens
         this.totalTokens += docLen;
-        const termCounts: Record<string, number> = {};
+        const termCounts: Record<string, number> = Object.create(null);
         for (const token of tokens) termCounts[token] = (termCounts[token] || 0) + 1;
 
         const nhcTokens = globalTokenizer.tokenize(nhc);
@@ -98,13 +98,13 @@ export class IndexerService {
   public async flushIndex() {
     if (Object.keys(this.tempIndex).length === 0) return;
     await this.flushIndexPart(this.tempIndex);
-    this.tempIndex = {}; 
+    this.tempIndex = Object.create(null); 
   }
 
   public async flushIndexIfNeeded(threshold = 3000) {
     if (Object.keys(this.tempIndex).length >= threshold) {
       await this.flushIndexPart(this.tempIndex);
-      this.tempIndex = {};
+      this.tempIndex = Object.create(null);
     }
   }
 
@@ -114,7 +114,7 @@ export class IndexerService {
 
     const fragKey = `skeletons_frag_${this.tempSkeletonFragmentCount}`;
     await db.saveBatch(db.stores.metadata, { [fragKey]: this.tempSkeletons });
-    this.tempSkeletons = {};
+    this.tempSkeletons = Object.create(null);
     this.tempSkeletonFragmentCount++;
   }
 
@@ -145,9 +145,9 @@ export class IndexerService {
 
     await db.saveBatch(db.stores.metadata, { clinical_dictionary: this.dictionary });
     
-    this.tempIndex = {};
-    this.tempGlobalTermCounts = {};
-    this.tempSkeletons = {};
+    this.tempIndex = Object.create(null);
+    this.tempGlobalTermCounts = Object.create(null);
+    this.tempSkeletons = Object.create(null);
     console.log(`[IndexerService] Indexación completada. Diccionario: ${this.dictionary.length} términos.`);
   }
 

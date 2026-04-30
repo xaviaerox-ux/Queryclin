@@ -73,7 +73,7 @@ export default function Help({ onBack }: HelpProps) {
           </div>
           <h2 className="text-xl font-bold mb-4">Importar Registros</h2>
           <p className="text-[var(--text-secondary)] text-sm leading-relaxed">
-            Suelte su archivo CSV en la pantalla principal. El sistema procesará automáticamente delimitadores de tipo pipeline (|) o coma (,).
+            Suelte su archivo de datos en la pantalla principal. El sistema procesará automáticamente archivos de texto plano (.txt, .csv) o libros Excel (.xlsx).
           </p>
           <div className="mt-4 p-3 bg-[var(--bg-clinical)] rounded-xl border border-[var(--border-clinical)] text-[10px] font-mono text-[var(--text-secondary)]">
             NHC|Nombre|Servicio|Fecha|Historia
@@ -129,7 +129,7 @@ export default function Help({ onBack }: HelpProps) {
       </div>
 
       <div className="text-center mt-16 text-[var(--text-secondary)] text-[10px] font-medium tracking-widest uppercase opacity-50">
-        Queryclin V2.3 &copy; 2026 - Auditoría y Calidad Clínica Asegurada
+        Queryclin V4.2.1 &copy; 2026 - Auditoría y Calidad Clínica Asegurada
       </div>
     </div>
   );

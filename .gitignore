@@ -15,3 +15,5 @@ DIARIO_APRENDIZAJE.md
 test-results/
 tests/data/*.csv
 STRESS_TEST_DATA.csv
+HC_Pruebas.txt
+tests/data/*.txt

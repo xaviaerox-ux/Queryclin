@@ -50,11 +50,25 @@ export default function Evolution({ onBack }: EvolutionProps) {
       color: 'purple'
     },
     {
-      date: '23 de Abril, 2026 (Actual)',
-      title: 'V3.0.0: Arquitectura Solid-State',
-      description: 'Salto generacional: Ingesta por Streaming (sin límite de RAM) e Índice Fragmentado por Bucketing. Solución definitiva para estabilidad y escalabilidad masiva.',
+      date: '23-25 de Abril, 2026',
+      title: 'V3.8: Arquitectura Solid-State',
+      description: 'Salto generacional: Ingesta por Streaming (sin límite de RAM) e Índice Fragmentado por Bucketing. Migración a Clean Architecture para una estabilidad total.',
       icon: <Shield className="text-indigo-500" />,
       color: 'indigo'
+    },
+    {
+      date: '26-28 de Abril, 2026',
+      title: 'V3.9: Motor BM25 & Synonyms',
+      description: 'Implementación del algoritmo de relevancia Okapi BM25 y el Clinical Synonym Mapper para una precisión de búsqueda de nivel hospitalario.',
+      icon: <Microscope className="text-emerald-500" />,
+      color: 'emerald'
+    },
+    {
+      date: '30 de Abril, 2026 (Actual)',
+      title: 'V4.2.1: Modernización y Soporte Excel',
+      description: 'Ingesta nativa de archivos .xlsx, modelos de formulario deterministas (HCE-ALG) y rediseño integral de la UX con buscador ubicuo en cabecera.',
+      icon: <Zap className="text-amber-500" />,
+      color: 'amber'
     }
   ];
 
@@ -115,12 +129,12 @@ export default function Evolution({ onBack }: EvolutionProps) {
         </p>
         <div className="mt-8 flex justify-center items-center gap-3">
           <Microscope size={20} className="text-[var(--accent-clinical)]" />
-          <span className="text-[11px] font-black uppercase tracking-[4px] text-[var(--text-secondary)]">Próxima Fase: Ingesta Inteligente con IA</span>
+          <span className="text-[11px] font-black uppercase tracking-[4px] text-[var(--text-secondary)]">Próxima Fase: Integración de Modelos de Lenguaje Clínico</span>
         </div>
       </div>
 
       <div className="text-center mt-12 text-[var(--text-secondary)] text-[10px] font-medium tracking-widest uppercase opacity-50">
-        Hoja de Ruta 2026 - Queryclin V2.7
+        Hoja de Ruta 2026 - Queryclin V4.2.1
       </div>
     </div>
   );
